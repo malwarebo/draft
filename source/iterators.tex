@@ -59,7 +59,7 @@ namespace std {
   template<class T> requires is_object_v<T> struct iterator_traits<T*>;             // freestanding
 
   template<@\exposconcept{dereferenceable}@ T>
-    using iter_reference_t = decltype(*declval<T&>());                              // freestanding
+    using @\libglobal{iter_reference_t}@ = decltype(*declval<T&>());                              // freestanding
 
   namespace ranges {
     // \ref{iterator.cust}, customization point objects
@@ -76,7 +76,7 @@ namespace std {
     requires requires(T& t) {
       { ranges::iter_move(t) } -> @\exposconcept{can-reference}@;
     }
-  using iter_rvalue_reference_t                                                     // freestanding
+  using @\libglobal{iter_rvalue_reference_t}@                                                     // freestanding
     = decltype(ranges::iter_move(declval<T&>()));
 
   // \ref{iterator.concepts}, iterator concepts
@@ -85,7 +85,7 @@ namespace std {
     concept indirectly_readable = @\seebelow@;                                        // freestanding
 
   template<@\libconcept{indirectly_readable}@ T>
-    using iter_common_reference_t =                                                 // freestanding
+    using @\libglobal{iter_common_reference_t}@ =                                                 // freestanding
       common_reference_t<iter_reference_t<T>, iter_value_t<T>&>;
 
   // \ref{iterator.concept.writable}, concept \libconcept{indirectly_writable}
@@ -110,7 +110,7 @@ namespace std {
 
   // \ref{iterator.concept.sizedsentinel}, concept \libconcept{sized_sentinel_for}
   template<class S, class I>
-    inline constexpr bool disable_sized_sentinel_for = false;                       // freestanding
+    constexpr bool disable_sized_sentinel_for = false;                              // freestanding
 
   template<class S, class I>
     concept sized_sentinel_for = @\seebelow@;                                         // freestanding
@@ -161,7 +161,7 @@ namespace std {
 
   template<class F, class... Is>
     requires (@\libconcept{indirectly_readable}@<Is> && ...) && @\libconcept{invocable}@<F, iter_reference_t<Is>...>
-      using indirect_result_t = invoke_result_t<F, iter_reference_t<Is>...>;        // freestanding
+      using @\libglobal{indirect_result_t}@ = invoke_result_t<F, iter_reference_t<Is>...>;        // freestanding
 
   // \ref{projected}, projected
   template<@\libconcept{indirectly_readable}@ I, @\libconcept{indirectly_regular_unary_invocable}@<I> Proj>
@@ -317,7 +317,7 @@ namespace std {
 
   template<class Iterator1, class Iterator2>
       requires (!@\libconcept{sized_sentinel_for}@<Iterator1, Iterator2>)
-    inline constexpr bool disable_sized_sentinel_for<reverse_iterator<Iterator1>,   // freestanding
+    constexpr bool disable_sized_sentinel_for<reverse_iterator<Iterator1>,          // freestanding
                                                      reverse_iterator<Iterator2>> = true;
 
   // \ref{insert.iterators}, insert iterators
@@ -342,7 +342,7 @@ namespace std {
     concept @\exposconcept{constant-iterator}@ = @\seebelow@; // \expos
   template<@\libconcept{input_iterator}@ I>
     using const_iterator = @\seebelow@;                                               // freestanding
-  template<class S>
+  template<@\libconcept{semiregular}@ S>
     using const_sentinel = @\seebelow@;                                               // freestanding
 
   // \ref{const.iterators.iterator}, class template \tcode{basic_const_iterator}
@@ -363,10 +363,10 @@ namespace std {
   };
 
   template<@\libconcept{input_iterator}@ I>
-    constexpr const_iterator<I> make_const_iterator(I it) { return it; }            // freestanding
+    constexpr const_iterator<I> @\libglobal{make_const_iterator}@(I it) { return it; }            // freestanding
 
-  template<class S>
-    constexpr const_sentinel<S> make_const_sentinel(S s) { return s; }              // freestanding
+  template<@\libconcept{semiregular}@ S>
+    constexpr const_sentinel<S> @\libglobal{make_const_sentinel}@(S s) { return s; }              // freestanding
 
   // \ref{move.iterators}, move iterators and sentinels
   template<class Iterator> class move_iterator;                                     // freestanding
@@ -401,6 +401,11 @@ namespace std {
 
   template<class Iterator>
     constexpr move_iterator<Iterator> make_move_iterator(Iterator i);               // freestanding
+
+  template<class Iterator1, class Iterator2>
+      requires (!@\libconcept{sized_sentinel_for}@<Iterator1, Iterator2>)
+    constexpr bool disable_sized_sentinel_for<move_iterator<Iterator1>,             // freestanding
+                                              move_iterator<Iterator2>> = true;
 
   template<@\libconcept{semiregular}@ S> class move_sentinel;                                      // freestanding
 
@@ -941,7 +946,7 @@ concept @\defexposconcept{cpp17-input-iterator}@ =
 template<class I>
 concept @\defexposconcept{cpp17-forward-iterator}@ =
   @\exposconcept{cpp17-input-iterator}@<I> && @\libconcept{constructible_from}@<I> &&
-  is_lvalue_reference_v<iter_reference_t<I>> &&
+  is_reference_v<iter_reference_t<I>> &&
   @\libconcept{same_as}@<remove_cvref_t<iter_reference_t<I>>,
           typename indirectly_readable_traits<I>::value_type> &&
   requires(I i) {
@@ -1128,12 +1133,8 @@ expression-equivalent to:
 \item \tcode{iter_move(E)}, if
 \tcode{E} has class or enumeration type and
 \tcode{iter_move(E)} is a well-formed expression when treated as an unevaluated operand,
-with overload resolution performed in a context
-that does not include a declaration of \tcode{ranges::iter_move}
-but does include the declaration
-\begin{codeblock}
-void iter_move();
-\end{codeblock}
+where the meaning of \tcode{iter_move} is established as-if by performing
+argument-dependent lookup only\iref{basic.lookup.argdep}.
 
 \item Otherwise, if the expression \tcode{*E} is well-formed:
 \begin{itemize}
@@ -1198,6 +1199,11 @@ and does not include a declaration of \tcode{ranges::iter_swap}.
 If the function selected by overload resolution does not exchange the values
 denoted by \tcode{E1} and \tcode{E2},
 the program is ill-formed, no diagnostic required.
+\begin{note}
+This precludes calling unconstrained \tcode{std::iter_swap}. When the deleted
+overload is viable, program-defined overloads need to be more
+specialized\iref{temp.func.order} to be selected.
+\end{note}
 
 \item Otherwise, if the types of \tcode{E1} and \tcode{E2} each model
 \libconcept{indirectly_readable}, and if the reference types of \tcode{E1} and \tcode{E2}
@@ -1360,10 +1366,10 @@ nor is the type required to be \libconcept{equality_comparable}.
 
 \begin{codeblock}
 template<class T>
-  inline constexpr bool @\exposid{is-integer-like}@ = @\seebelow@; @\itcorr[-2]@           // \expos
+  constexpr bool @\exposid{is-integer-like}@ = @\seebelow@; @\itcorr[-2]@                  // \expos
 
 template<class T>
-  inline constexpr bool @\exposid{is-signed-integer-like}@ = @\seebelow@; @\itcorr[-2]@    // \expos
+  constexpr bool @\exposid{is-signed-integer-like}@ = @\seebelow@; @\itcorr[-2]@           // \expos
 
 template<class I>
   concept @\deflibconcept{weakly_incrementable}@ =
@@ -1694,7 +1700,7 @@ necessary to make \tcode{bool(i == s)} be \tcode{true}.
 \indexlibraryglobal{disable_sized_sentinel_for}%
 \begin{itemdecl}
 template<class S, class I>
-  inline constexpr bool disable_sized_sentinel_for = false;
+  constexpr bool disable_sized_sentinel_for = false;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -2005,9 +2011,8 @@ bidirectional.iterators,random.access.iterators}.
 \pnum
 A type \tcode{X} meets the \defnoldconcept{Iterator} requirements if:
 \begin{itemize}
-\item \tcode{X} meets the \oldconcept{CopyConstructible}, \oldconcept{CopyAssignable}, and
-\oldconcept{Destructible} requirements\iref{utility.arg.requirements} and lvalues
-of type \tcode{X} are swappable\iref{swappable.requirements}, and
+\item \tcode{X} meets the \oldconcept{CopyConstructible}, \oldconcept{CopyAssignable}, \oldconcept{Swappable}, and
+\oldconcept{Destructible} requirements\iref{utility.arg.requirements,swappable.requirements}, and
 
 \item \tcode{iterator_traits<X>::difference_type} is a signed integer type or \keyword{void}, and
 
@@ -2089,7 +2094,7 @@ has property
                     &                       &   \chdr{semantics}    &   \rhdr{pre-/post-condition}   \\ \capsep
 \endhead
 \tcode{a != b}                  &
- contextually convertible to \tcode{bool}    &
+ \tcode{decltype(a != b)} models \exposconceptx{boolean-test\-able}{boolean-testable}  &
  \tcode{!(a == b)}                              &
  \expects \orange{a}{b} is in the domain of \tcode{==}. \\ \rowsep
 
@@ -2377,25 +2382,21 @@ the following expressions are valid as shown in \tref{randomaccessiterator}.
  \tcode{*(a + n)}   &   \\ \rowsep
 
 \tcode{a < b}       &
- contextually
- convertible to \tcode{bool}    &
+ \tcode{decltype(a < b)} models \exposconceptx{boolean-test\-able}{boolean-testable}    &
  \effects Equivalent to: \tcode{return b - a > 0;}  &
  \tcode{<} is a total ordering relation \\ \rowsep
 
 \tcode{a > b}       &
- contextually
- convertible to \tcode{bool}    &
+ \tcode{decltype(a > b)} models \exposconceptx{boolean-test\-able}{boolean-testable}    &
  \tcode{b < a}      &
  \tcode{>} is a total ordering relation opposite to \tcode{<}.  \\ \rowsep
 
 \tcode{a >= b}      &
- contextually
- convertible to \tcode{bool}    &
+ \tcode{decltype(a >= b)} models \exposconceptx{boolean-test\-able}{boolean-testable}    &
  \tcode{!(a < b)}   &   \\ \rowsep
 
 \tcode{a <= b}      &
- contextually
- convertible to \tcode{bool}.    &
+ \tcode{decltype(a <= b)} models \exposconceptx{boolean-test\-able}{boolean-testable}    &
  \tcode{!(a > b)}   &   \\
 \end{libreqtab4b}
 
@@ -4175,7 +4176,7 @@ Specializations of \tcode{basic_const_iterator} are constant iterators.
 
 \begin{itemdecl}
 template<@\libconcept{indirectly_readable}@ It>
-  using iter_const_reference_t =
+  using @\libglobal{iter_const_reference_t}@ =
     common_reference_t<const iter_value_t<It>&&, iter_reference_t<It>>;
 
 template<class It>
@@ -4194,7 +4195,7 @@ Otherwise, \tcode{basic_const_iterator<I>}.
 \end{itemdescr}
 
 \begin{itemdecl}
-template<class S>
+template<@\libconcept{semiregular}@ S>
   using @\libglobal{const_sentinel}@ = @\seebelow@;
 \end{itemdecl}
 
@@ -5279,6 +5280,7 @@ namespace std {
         constexpr move_sentinel& operator=(const move_sentinel<S2>& s);
 
     constexpr S base() const;
+
   private:
     S last;     // \expos
   };
@@ -6466,7 +6468,7 @@ namespace std {
     constexpr istream_iterator();
     constexpr istream_iterator(default_sentinel_t);
     istream_iterator(istream_type& s);
-    istream_iterator(const istream_iterator& x) = default;
+    constexpr istream_iterator(const istream_iterator& x) noexcept(@\seebelow@);
     ~istream_iterator() = default;
     istream_iterator& operator=(const istream_iterator&) = default;
 
@@ -6529,18 +6531,22 @@ and then calls \tcode{operator++()}.
 
 \indexlibraryctor{istream_iterator}%
 \begin{itemdecl}
-istream_iterator(const istream_iterator& x) = default;
+constexpr istream_iterator(const istream_iterator& x) noexcept(@\seebelow@);
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
-\ensures
-\tcode{in_stream == x.in_stream} is \tcode{true}.
+\effects
+Initializes \tcode{in_stream} with \tcode{x.in_stream} and
+initializes \tcode{value} with \tcode{x.value}.
 
 \pnum
 \remarks
-If \tcode{is_trivially_copy_constructible_v<T>} is \tcode{true},
-then this constructor is trivial.
+An invocation of this constructor may be used in a core constant expression
+if and only if the initialization of \tcode{value} from \tcode{x.value}
+is a constant subexpression\iref{defns.const.subexpr}.
+The exception specification is equivalent to
+\tcode{is_nothrow_copy_constructible_v<T>}.
 \end{itemdescr}
 
 \indexlibrarydtor{istream_iterator}%

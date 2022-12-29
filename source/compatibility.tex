@@ -16,7 +16,7 @@ by the chapters of this document.
 \diffref{lex.name}
 \change
 Previously valid identifiers containing characters
-not present in UAX \#44 properties XID_Start or XID_Continue, or
+not present in \UAX{44} properties XID_Start or XID_Continue, or
 not in Normalization Form C, are now rejected.
 \rationale
 Prevent confusing characters in identifiers.
@@ -67,6 +67,29 @@ For example:
 \begin{codeblock}
 arr[1, 2]               // was equivalent to \tcode{arr[(1, 2)]},
                         // now equivalent to \tcode{arr.operator[](1, 2)} or ill-formed
+\end{codeblock}
+
+\rSec2[diff.cpp20.stmt]{\ref{stmt.stmt}: statements}
+
+\diffref{stmt.ranged}
+\change
+The lifetime of temporary objects in the \grammarterm{for-range-initializer}
+is extended until the end of the loop\iref{class.temporary}.
+\rationale
+Improve usability of the range-based \keyword{for} statement.
+\effect
+Destructors of some temporary objects are invoked later.
+For example:
+\begin{codeblock}
+void f() {
+  std::vector<int> v = { 42, 17, 13 };
+  std::mutex m;
+
+  for (int x :
+       static_cast<void>(std::lock_guard<std::mutex>(m)), v) {  // lock released in \CppXX
+    std::lock_guard<std::mutex> guard(m);                       // OK in \CppXX, now deadlocks
+  }
+}
 \end{codeblock}
 
 \rSec2[diff.cpp20.dcl]{\ref{dcl.dcl}: declarations}
@@ -128,9 +151,13 @@ New functionality.
 \effect
 The following \Cpp{} headers are new:
 \libheaderref{expected},
-\libheaderref{stdatomic.h},
-\libheaderref{spanstream}, and
-\libheaderref{stacktrace}.
+\libheaderrefx{flat_map}{flat.map.syn},
+\libheaderrefx{flat_set}{flat.set.syn},
+\libheaderref{generator},
+\libheaderref{print},
+\libheaderref{spanstream},
+\libheaderref{stacktrace}, and
+\libheaderref{stdatomic.h}.
 Valid \CppXX{} code that \tcode{\#include}{s} headers with these names may be
 invalid in this revision of \Cpp{}.
 
@@ -651,6 +678,31 @@ int check(A x, A y) {
     (10 == x) +                 // calls \#1, previously selected \#2
     (10 != x);                  // calls \#1, previously selected \#3
 }
+\end{codeblock}
+
+\diffref{over.match.oper}
+\change
+Overload resolution may change for equality operators\iref{expr.eq}.
+\rationale
+Support calling \tcode{operator==} with reversed order of arguments.
+\effect
+Valid \CppXVII{} code that uses equality operators with conversion functions
+may be ill-formed or have different semantics in this revision of \Cpp{}.
+For example:
+\begin{codeblock}
+struct A {
+  operator int() const { return 10; }
+};
+
+bool operator==(A, int);        // \#1
+// \#2 is built-in candidate: \tcode{bool operator==(int, int);}
+bool b = 10 == A();             // calls \#1 with reversed order of arguments; previously selected \#2
+
+struct B {
+  bool operator==(const B&);    // member function with no cv-qualifier
+};
+B b1;
+bool eq = (b1 == b1);           // ambiguous; previously well-formed
 \end{codeblock}
 
 \rSec2[diff.cpp17.temp]{\ref{temp}: templates}

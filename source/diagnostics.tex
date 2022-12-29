@@ -816,9 +816,9 @@ namespace std {
 
   // \ref{syserr}, system error support
   template<class T>
-    inline constexpr bool is_error_code_enum_v = is_error_code_enum<T>::value;
+    constexpr bool is_error_code_enum_v = is_error_code_enum<T>::value;
   template<class T>
-    inline constexpr bool is_error_condition_enum_v = is_error_condition_enum<T>::value;
+    constexpr bool is_error_condition_enum_v = is_error_condition_enum<T>::value;
 }
 \end{codeblock}
 
@@ -1122,8 +1122,9 @@ error_code() noexcept;
 
 \begin{itemdescr}
 \pnum
-\ensures
-\tcode{val_ == 0} and \tcode{cat_ == \&system_category()}.
+\effects
+Initializes \tcode{val_} with \tcode{0}
+and \tcode{cat_} with \tcode{\&system_category()}.
 \end{itemdescr}
 
 \indexlibraryctor{error_code}%
@@ -1133,8 +1134,9 @@ error_code(int val, const error_category& cat) noexcept;
 
 \begin{itemdescr}
 \pnum
-\ensures
-\tcode{val_ == val} and \tcode{cat_ == \&cat}.
+\effects
+Initializes \tcode{val_} with \tcode{val}
+and \tcode{cat_} with \tcode{\&cat}.
 \end{itemdescr}
 
 \indexlibraryctor{error_code}%
@@ -1149,8 +1151,12 @@ template<class ErrorCodeEnum>
 \tcode{is_error_code_enum_v<ErrorCodeEnum>} is \tcode{true}.
 
 \pnum
-\ensures
-\tcode{*this == make_error_code(e)}.
+\effects
+Equivalent to:
+\begin{codeblock}
+error_code ec = make_error_code(e);
+assign(ec.value(), ec.category());
+\end{codeblock}
 \end{itemdescr}
 
 \rSec3[syserr.errcode.modifiers]{Modifiers}
@@ -1178,8 +1184,12 @@ template<class ErrorCodeEnum>
 \tcode{is_error_code_enum_v<ErrorCodeEnum>} is \tcode{true}.
 
 \pnum
-\ensures
-\tcode{*this == make_error_code(e)}.
+\effects
+Equivalent to:
+\begin{codeblock}
+error_code ec = make_error_code(e);
+assign(ec.value(), ec.category());
+\end{codeblock}
 
 \pnum
 \returns
@@ -1332,8 +1342,9 @@ error_condition() noexcept;
 
 \begin{itemdescr}
 \pnum
-\ensures
-\tcode{val_ == 0} and \tcode{cat_ == \&generic_category()}.
+\effects
+Initializes \tcode{val_} with \tcode{0}
+and \tcode{cat_} with \tcode{\&generic_category()}.
 \end{itemdescr}
 
 \indexlibraryctor{error_condition}%
@@ -1343,8 +1354,9 @@ error_condition(int val, const error_category& cat) noexcept;
 
 \begin{itemdescr}
 \pnum
-\ensures
-\tcode{val_ == val} and \tcode{cat_ == \&cat}.
+\effects
+Initializes \tcode{val_} with \tcode{val}
+and \tcode{cat_} with \tcode{\&cat}.
 \end{itemdescr}
 
 \indexlibraryctor{error_condition}%
@@ -1359,8 +1371,12 @@ template<class ErrorConditionEnum>
 \tcode{is_error_condition_enum_v<ErrorConditionEnum>} is \tcode{true}.
 
 \pnum
-\ensures
-\tcode{*this == make_error_condition(e)}.
+\effects
+Equivalent to:
+\begin{codeblock}
+error_condition ec = make_error_condition(e);
+assign(ec.value(), ec.category());
+\end{codeblock}
 \end{itemdescr}
 
 
@@ -1389,8 +1405,12 @@ template<class ErrorConditionEnum>
 \tcode{is_error_condition_enum_v<ErrorConditionEnum>} is \tcode{true}.
 
 \pnum
-\ensures
-\tcode{*this == make_error_condition(e)}.
+\effects
+Equivalent to:
+\begin{codeblock}
+error_condition ec = make_error_condition(e);
+assign(ec.value(), ec.category());
+\end{codeblock}
 
 \pnum
 \returns
@@ -1732,13 +1752,9 @@ namespace std {
   template<class Allocator>
     string to_string(const basic_stacktrace<Allocator>& st);
 
-  template<class charT, class traits>
-    basic_ostream<charT, traits>&
-      operator<<(basic_ostream<charT, traits>& os, const stacktrace_entry& f);
-
-  template<class charT, class traits, class Allocator>
-    basic_ostream<charT, traits>&
-      operator<<(basic_ostream<charT, traits>& os, const basic_stacktrace<Allocator>& st);
+  ostream& operator<<(ostream& os, const stacktrace_entry& f);
+  template<class Allocator>
+    ostream& operator<<(ostream& os, const basic_stacktrace<Allocator>& st);
 
   namespace pmr {
     using stacktrace = basic_stacktrace<polymorphic_allocator<stacktrace_entry>>;
@@ -2371,9 +2387,7 @@ The number of lines is not guaranteed to be equal to \tcode{st.size()}.
 
 \indexlibrarymember{operator<<}{stacktrace_entry}%
 \begin{itemdecl}
-template<class charT, class traits>
-basic_ostream<charT, traits>&
-  operator<<(basic_ostream<charT, traits>& os, const stacktrace_entry& f);
+ostream& operator<<(ostream& os, const stacktrace_entry& f);
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -2384,9 +2398,8 @@ Equivalent to: \tcode{return os << to_string(f);}
 
 \indexlibrarymember{operator<<}{basic_stacktrace}%
 \begin{itemdecl}
-template<class charT, class traits, class Allocator>
-basic_ostream<charT, traits>&
-  operator<<(basic_ostream<charT, traits>& os, const basic_stacktrace<Allocator>& st);
+template<class Allocator>
+  ostream& operator<<(ostream& os, const basic_stacktrace<Allocator>& st);
 \end{itemdecl}
 
 \begin{itemdescr}

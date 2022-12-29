@@ -541,9 +541,9 @@ namespace std {
   class basic_string_view;
 
   template<class charT, class traits>
-    inline constexpr bool ranges::enable_view<basic_string_view<charT, traits>> = true;
+    constexpr bool ranges::enable_view<basic_string_view<charT, traits>> = true;
   template<class charT, class traits>
-    inline constexpr bool ranges::enable_borrowed_range<basic_string_view<charT, traits>> = true;
+    constexpr bool ranges::enable_borrowed_range<basic_string_view<charT, traits>> = true;
 
   // \ref{string.view.comparison}, non-member comparison functions
   template<class charT, class traits>
@@ -4961,10 +4961,9 @@ is called and the
 object is destroyed.
 
 \pnum
-If the function extracts no characters, it calls
-\tcode{is.setstate(ios_base::failbit)},
-which may throw
-\tcode{ios_base::fail\-ure}\iref{iostate.flags}.
+If the function extracts no characters,
+\tcode{ios_base::failbit} is set in the input function's local error state
+before \tcode{setstate} is called.
 
 \pnum
 \returns
@@ -5015,24 +5014,19 @@ to \tcode{str} as if by calling
 until any of the following occurs:
 \begin{itemize}
 \item
-end-of-file occurs on the input sequence
-(in which case, the
-\tcode{getline}
-function calls
-\tcode{is.setstate(\brk{}ios_base::eofbit)}).
+end-of-file occurs on the input sequence;
 \item
 \tcode{traits::eq(c, delim)}
 for the next available input character
 \textit{c}
 (in which case,
 \textit{c}
-is extracted but not appended)\iref{iostate.flags}
+is extracted but not appended);
 \item
 \tcode{str.max_size()}
 characters are stored
 (in which case,
-the function calls
-\tcode{is.setstate(ios_base::fail\-bit))}\iref{iostate.flags}
+\tcode{ios_base::failbit} is set in the input function's local error state).
 \end{itemize}
 
 \pnum
@@ -5043,10 +5037,9 @@ after the last character is extracted, the
 object is destroyed.
 
 \pnum
-If the function extracts no characters, it calls
-\tcode{is.setstate(ios_base::fail\-bit)}
-which may throw
-\tcode{ios_base::fail\-ure}\iref{iostate.flags}.
+If the function extracts no characters,
+\tcode{ios_base::failbit} is set in the input function's local error state
+before \tcode{setstate} is called.
 
 \pnum
 \returns

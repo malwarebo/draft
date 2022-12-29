@@ -207,13 +207,13 @@ namespace std {
     struct in_place_type_t {
       explicit in_place_type_t() = default;
     };
-  template<class T> inline constexpr in_place_type_t<T> in_place_type{};
+  template<class T> constexpr in_place_type_t<T> in_place_type{};
 
   template<size_t I>
     struct in_place_index_t {
       explicit in_place_index_t() = default;
     };
-  template<size_t I> inline constexpr in_place_index_t<I> in_place_index{};
+  template<size_t I> constexpr in_place_index_t<I> in_place_index{};
 }
 \end{codeblock}
 
@@ -367,6 +367,10 @@ template<class T, class U>
 \end{itemdecl}
 
 \begin{itemdescr}
+\pnum
+\mandates
+\tcode{T} is a referenceable type\iref{defns.referenceable}.
+
 \pnum
 \begin{itemize}
 \item
@@ -1266,6 +1270,11 @@ template<class T1, class T2>
 
 \begin{itemdescr}
 \pnum
+\expects
+Each of \tcode{decltype(x.first == y.first)} and
+\tcode{decltype(x.second == y.second)} models \exposconcept{boolean-testable}.
+
+\pnum
 \returns
 \tcode{x.first == y.first \&\& x.second == y.second}.
 \end{itemdescr}
@@ -1575,7 +1584,7 @@ namespace std {
 
   // \ref{tuple.helper}, tuple helper classes
   template<class T>
-    inline constexpr size_t @\libglobal{tuple_size_v}@ = tuple_size<T>::value;
+    constexpr size_t @\libglobal{tuple_size_v}@ = tuple_size<T>::value;
 }
 \end{codeblock}
 
@@ -2464,6 +2473,9 @@ constexpr void swap(const tuple& rhs) const noexcept(@\seebelow@);
 
 \begin{itemdescr}
 \pnum
+Let $i$ be in the range \range{0}{sizeof...(Types)} in order.
+
+\pnum
 \mandates
 \begin{itemize}
 \item
@@ -2476,13 +2488,11 @@ For the second overload,
 
 \pnum
 \expects
-Each element in \tcode{*this} is swappable with\iref{swappable.requirements}
-the corresponding element in \tcode{rhs}.
+For all $i$, \tcode{get<$i$>(*this)} is swappable with\iref{swappable.requirements} \tcode{get<$i$>(rhs)}.
 
 \pnum
 \effects
-Calls \tcode{swap} for each element in \tcode{*this} and its
-corresponding element in \tcode{rhs}.
+For each $i$, calls \tcode{swap} for \tcode{get<$i$>(*this)} with \tcode{get<$i$>(rhs)}.
 
 \pnum
 \throws
@@ -2903,10 +2913,14 @@ For the first overload let \tcode{UTuple} be \tcode{tuple<UTypes...>}.
 \mandates
 For all \tcode{i},
 where $0 \leq \tcode{i} < \tcode{sizeof...(TTypes)}$,
-\tcode{get<i>(t) == get<i>(u)} is a valid expression
-returning a type that is convertible to \tcode{bool}.
+\tcode{get<i>(t) == get<i>(u)} is a valid expression.
 \tcode{sizeof...(TTypes)} equals
 \tcode{tuple_size_v<UTuple>}.
+
+\pnum
+\expects
+For all \tcode{i}, \tcode{decltype(get<i>(t) == get<i>(u))} models
+\exposconcept{boolean-testable}.
 
 \pnum
 \returns
@@ -3131,9 +3145,9 @@ namespace std {
     class optional;
 
   template<class T>
-    constexpr bool @\exposid{is-optional}@ = false;                 // \expos
-  template<class T>
-    constexpr bool @\exposid{is-optional}@<optional<T>> = true;     // \expos
+    concept @\defexposconcept{is-derived-from-optional}@ = requires(const T& t) {       // \expos
+      []<class U>(const optional<U>&){ }(t);
+    };
 
   // \ref{optional.nullopt}, no-value state indicator
   struct nullopt_t{@\seebelow@};
@@ -3177,7 +3191,8 @@ namespace std {
   template<class T, class U> constexpr bool operator<=(const T&, const optional<U>&);
   template<class T, class U> constexpr bool operator>=(const optional<T>&, const U&);
   template<class T, class U> constexpr bool operator>=(const T&, const optional<U>&);
-  template<class T, class U> requires (!@\exposid{is-optional}@<U>) && @\libconcept{three_way_comparable_with}@<T, U>
+  template<class T, class U>
+      requires (!@\exposconcept{is-derived-from-optional}@<U>) && @\libconcept{three_way_comparable_with}@<T, U>
     constexpr compare_three_way_result_t<T, U>
       operator<=>(const optional<T>&, const U&);
 
@@ -3303,6 +3318,18 @@ other than \cv{} \tcode{in_place_t} or \cv{} \tcode{nullopt_t}
 that meets the \oldconcept{Destructible} requirements (\tref{cpp17.destructible}).
 
 \rSec3[optional.ctor]{Constructors}
+
+\pnum
+The exposition-only variable template \exposid{converts-from-any-cvref}
+is used by some constructors for \tcode{optional}.
+\begin{codeblock}
+template<class T, class W>
+constexpr bool @\exposid{converts-from-any-cvref}@ =  // \expos
+  disjunction_v<is_constructible<T, W&>, is_convertible<W&, T>,
+                is_constructible<T, W>, is_convertible<W, T>,
+                is_constructible<T, const W&>, is_convertible<const W&, T>,
+                is_constructible<T, const W>, is_convertible<const W, T>>;
+\end{codeblock}
 
 \indexlibraryctor{optional}%
 \begin{itemdecl}
@@ -3478,15 +3505,8 @@ template<class U> constexpr explicit(@\seebelow@) optional(const optional<U>& rh
 \pnum
 \constraints
 \begin{itemize}
-\item \tcode{is_constructible_v<T, const U\&>} is \tcode{true},
-\item \tcode{is_constructible_v<T, optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&, T>} is \tcode{false}, and
-\item \tcode{is_convertible_v<const optional<U>\&\&, T>} is \tcode{false}.
+\item \tcode{is_constructible_v<T, const U\&>} is \tcode{true}, and
+\item \tcode{\exposid{converts-from-any-cvref}<T, optional<U>>} is \tcode{false}.
 \end{itemize}
 
 \pnum
@@ -3519,15 +3539,8 @@ template<class U> constexpr explicit(@\seebelow@) optional(optional<U>&& rhs);
 \pnum
 \constraints
 \begin{itemize}
-\item \tcode{is_constructible_v<T, U>} is \tcode{true},
-\item \tcode{is_constructible_v<T, optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&, T>} is \tcode{false}, and
-\item \tcode{is_convertible_v<const optional<U>\&\&, T>} is \tcode{false}.
+\item \tcode{is_constructible_v<T, U>} is \tcode{true}, and
+\item \tcode{\exposid{converts-from-any-cvref}<T, optional<U>>} is \tcode{false}.
 \end{itemize}
 
 \pnum
@@ -3736,14 +3749,7 @@ template<class U> constexpr optional<T>& operator=(const optional<U>& rhs);
 \begin{itemize}
 \item \tcode{is_constructible_v<T, const U\&>} is \tcode{true},
 \item \tcode{is_assignable_v<T\&, const U\&>} is \tcode{true},
-\item \tcode{is_constructible_v<T, optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&\&, T>} is \tcode{false},
+\item \tcode{\exposid{converts-from-any-cvref}<T, optional<U>>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, optional<U>\&>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, optional<U>\&\&>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, const optional<U>\&>} is \tcode{false}, and
@@ -3798,14 +3804,7 @@ template<class U> constexpr optional<T>& operator=(optional<U>&& rhs);
 \begin{itemize}
 \item \tcode{is_constructible_v<T, U>} is \tcode{true},
 \item \tcode{is_assignable_v<T\&, U>} is \tcode{true},
-\item \tcode{is_constructible_v<T, optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&>} is \tcode{false},
-\item \tcode{is_constructible_v<T, const optional<U>\&\&>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<optional<U>\&\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&, T>} is \tcode{false},
-\item \tcode{is_convertible_v<const optional<U>\&\&, T>} is \tcode{false},
+\item \tcode{\exposid{converts-from-any-cvref}<T, optional<U>>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, optional<U>\&>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, optional<U>\&\&>} is \tcode{false},
 \item \tcode{is_assignable_v<T\&, const optional<U>\&>} is \tcode{false}, and
@@ -3928,7 +3927,7 @@ constexpr void swap(optional& rhs) noexcept(@\seebelow@);
 
 \pnum
 \expects
-Lvalues of type \tcode{T} are swappable.
+\tcode{T} meets the \oldconcept{Swappable} requirements\iref{swappable.requirements}.
 
 \pnum
 \effects
@@ -4748,7 +4747,8 @@ Equivalent to: \tcode{return x.has_value() ? v >= *x : true;}
 
 \indexlibrarymember{operator<=>}{optional}%
 \begin{itemdecl}
-template<class T, class U> requires (!@\exposid{is-optional}@<U>) && @\libconcept{three_way_comparable_with}@<T, U>
+template<class T, class U>
+    requires (!@\exposconcept{is-derived-from-optional}@<U>) && @\libconcept{three_way_comparable_with}@<T, U>
   constexpr compare_three_way_result_t<T, U>
     operator<=>(const optional<T>& x, const U& v);
 \end{itemdecl}
@@ -4857,7 +4857,7 @@ namespace std {
   template<class T> struct variant_size;                        // \notdef
   template<class T> struct variant_size<const T>;
   template<class T>
-    inline constexpr size_t @\libglobal{variant_size_v}@ = variant_size<T>::value;
+    constexpr size_t @\libglobal{variant_size_v}@ = variant_size<T>::value;
 
   template<class... Types>
     struct variant_size<variant<Types...>>;
@@ -5698,7 +5698,7 @@ constexpr void swap(variant& rhs) noexcept(@\seebelow@);
 
 \pnum
 \expects
-Lvalues of type $\tcode{T}_i$ are swappable\iref{swappable.requirements}.
+Each $\tcode{T}_i$ meets the \oldconcept{Swappable} requirements\iref{swappable.requirements}.
 
 \pnum
 \effects
@@ -7120,6 +7120,7 @@ namespace std {
     const E& error() const & noexcept;
     E&& error() && noexcept;
     const E&& error() const && noexcept;
+
   private:
     E @\exposidnc{unex}@;             // \expos
   };
@@ -7191,6 +7192,7 @@ namespace std {
     bad_expected_access& operator=(const bad_expected_access&);
     bad_expected_access& operator=(bad_expected_access&&);
     ~bad_expected_access();
+
   public:
     const char* what() const noexcept override;
   };
@@ -7237,9 +7239,9 @@ namespace std {
       constexpr explicit(@\seebelow@) expected(U&& v);
 
     template<class G>
-      constexpr expected(const unexpected<G>&);
+      constexpr explicit(@\seebelow@) expected(const unexpected<G>&);
     template<class G>
-      constexpr expected(unexpected<G>&&);
+      constexpr explicit(@\seebelow@) expected(unexpected<G>&&);
 
     template<class... Args>
       constexpr explicit expected(in_place_t, Args&&...);
@@ -7290,6 +7292,26 @@ namespace std {
     constexpr E&& error() && noexcept;
     template<class U> constexpr T value_or(U&&) const &;
     template<class U> constexpr T value_or(U&&) &&;
+    template<class G = E> constexpr E error_or(G&&) const &;
+    template<class G = E> constexpr E error_or(G&&) &&;
+
+    // \ref{expected.object.monadic}, monadic operations
+    template<class F> constexpr auto and_then(F&& f) &;
+    template<class F> constexpr auto and_then(F&& f) &&;
+    template<class F> constexpr auto and_then(F&& f) const &;
+    template<class F> constexpr auto and_then(F&& f) const &&;
+    template<class F> constexpr auto or_else(F&& f) &;
+    template<class F> constexpr auto or_else(F&& f) &&;
+    template<class F> constexpr auto or_else(F&& f) const &;
+    template<class F> constexpr auto or_else(F&& f) const &&;
+    template<class F> constexpr auto transform(F&& f) &;
+    template<class F> constexpr auto transform(F&& f) &&;
+    template<class F> constexpr auto transform(F&& f) const &;
+    template<class F> constexpr auto transform(F&& f) const &&;
+    template<class F> constexpr auto transform_error(F&& f) &;
+    template<class F> constexpr auto transform_error(F&& f) &&;
+    template<class F> constexpr auto transform_error(F&& f) const &;
+    template<class F> constexpr auto transform_error(F&& f) const &&;
 
     // \ref{expected.object.eq}, equality operators
     template<class T2, class E2> requires (!is_void_v<T2>)
@@ -7320,12 +7342,14 @@ Member \exposid{has_val} indicates whether the \tcode{expected<T, E>} object
 contains an object of type \tcode{T}.
 
 \pnum
-A program
-that instantiates the definition of template \tcode{expected<T, E>}
-for a reference type, a function type, or
-for possibly cv-qualified types \tcode{in_place_t}, \tcode{unexpect_t}, or
-a specialization of \tcode{unexpected} for the \tcode{T} parameter
-is ill-formed.
+A type \tcode{T} is a \term{valid value type for \tcode{expected}},
+if \tcode{remove_cv_t<T>} is \tcode{void}
+or a complete non-array object type that is not \tcode{in_place_t},
+\tcode{unexpect_t},
+or a specialization of \tcode{unexpected}.
+A program which instantiates class template \tcode{expected<T, E>}
+with an argument \tcode{T} that is not a valid value
+type for \tcode{expected} is ill-formed.
 A program that instantiates
 the definition of the template \tcode{expected<T, E>}
 with a type for the \tcode{E} parameter
@@ -7338,6 +7362,11 @@ the \oldconcept{Destructible} requirements (\tref{cpp17.destructible}).
 the \oldconcept{Destructible} requirements.
 
 \rSec3[expected.object.cons]{Constructors}
+
+\pnum
+The exposition-only variable template \exposid{converts-from-any-cvref}
+defined in \ref{optional.ctor}
+is used by some constructors for \tcode{expected}.
 
 \indexlibraryctor{expected}%
 \begin{itemdecl}
@@ -7477,21 +7506,7 @@ Let:
 \item
 \tcode{is_constructible_v<E, GF>} is \tcode{true}; and
 \item
-\tcode{is_constructible_v<T, expected<U, G>\&>} is \tcode{false}; and
-\item
-\tcode{is_constructible_v<T, expected<U, G>>} is \tcode{false}; and
-\item
-\tcode{is_constructible_v<T, const expected<U, G>\&>} is \tcode{false}; and
-\item
-\tcode{is_constructible_v<T, const expected<U, G>>} is \tcode{false}; and
-\item
-\tcode{is_convertible_v<expected<U, G>\&, T>} is \tcode{false}; and
-\item
-\tcode{is_convertible_v<expected<U, G>\&\&, T>} is \tcode{false}; and
-\item
-\tcode{is_convertible_v<const expected<U, G>\&, T>} is \tcode{false}; and
-\item
-\tcode{is_convertible_v<const expected<U, G>\&\&, T>} is \tcode{false}; and
+\tcode{\exposid{converts-from-any-cvref}<T, expected<U, G>>} is \tcode{false}; and
 \item
 \tcode{is_constructible_v<unexpected<E>, expected<U, G>\&>} is \tcode{false}; and
 \item
@@ -8231,6 +8246,309 @@ template<class U> constexpr T value_or(U&& v) &&;
 \tcode{has_value() ? std::move(**this) : static_cast<T>(std::forward<U>(v))}.
 \end{itemdescr}
 
+\indexlibrarymember{error_or}{expected}%
+\begin{itemdecl}
+template<class G = E> constexpr E error_or(G&& e) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{is_copy_constructible_v<E>} is \tcode{true} and
+\tcode{is_convertible_v<G, E>} is \tcode{true}.
+
+\pnum
+\returns
+\tcode{std::forward<G>(e)} if \tcode{has_value()} is \tcode{true},
+\tcode{error()} otherwise.
+\end{itemdescr}
+
+\indexlibrarymember{error_or}{expected}%
+\begin{itemdecl}
+template<class G = E> constexpr E error_or(G&& e) &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{is_move_constructible_v<E>} is \tcode{true} and
+\tcode{is_convertible_v<G, E>} is \tcode{true}.
+
+\pnum
+\returns
+\tcode{std::forward<G>(e)} if \tcode{has_value()} is \tcode{true},
+\tcode{std::move(error())} otherwise.
+\end{itemdescr}
+
+\rSec3[expected.object.monadic]{Monadic operations}
+
+\indexlibrarymember{and_then}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto and_then(F&& f) &;
+template<class F> constexpr auto and_then(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be \tcode{remove_cvref_t<invoke_result_t<F, decltype(value())>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a specialization of \tcode{expected} and
+\tcode{is_same_v<U::error_type, E>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return invoke(std::forward<F>(f), value());
+else
+  return U(unexpect, error());
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{and_then}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto and_then(F&& f) &&;
+template<class F> constexpr auto and_then(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be
+\tcode{remove_cvref_t<invoke_result_t<F, decltype(std::move(value()))>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a specialization of \tcode{expected} and
+\tcode{is_same_v<U::error_type, E>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return invoke(std::forward<F>(f), std::move(value()));
+else
+  return U(unexpect, std::move(error()));
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{or_else}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto or_else(F&& f) &;
+template<class F> constexpr auto or_else(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be \tcode{remove_cvref_t<invoke_result_t<F, decltype(error())>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<T>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{G} is a specialization of \tcode{expected} and
+\tcode{is_same_v<G::value_type, T>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return G(in_place, value());
+else
+  return invoke(std::forward<F>(f), error());
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{or_else}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto or_else(F&& f) &&;
+template<class F> constexpr auto or_else(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be
+\tcode{remove_cvref_t<invoke_result_t<F, decltype(std::move(error()))>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<T>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{G} is a specialization of \tcode{expected} and
+\tcode{is_same_v<G::value_type, T>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return G(in_place, std::move(value()));
+else
+  return invoke(std::forward<F>(f), std::move(error()));
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{transform}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto transform(F&& f) &;
+template<class F> constexpr auto transform(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be
+\tcode{remove_cv_t<invoke_result_t<F, decltype(value())>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a valid value type for \tcode{expected}.
+If \tcode{is_void_v<U>} is \tcode{false},
+the declaration
+\begin{codeblock}
+U u(invoke(std::forward<F>(f), value()));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\effects
+\begin{itemize}
+\item
+If \tcode{has_value()} is \tcode{false}, returns
+\tcode{expected<U, E>(unexpect, error())}.
+\item
+Otherwise, if \tcode{is_void_v<U>} is \tcode{false}, returns an
+\tcode{expected<U, E>} object whose \exposid{has_val} member is \tcode{true}
+and \exposid{val} member is direct-non-list-initialized with
+\tcode{invoke(std::forward<F>(f), value())}.
+\item
+Otherwise, evaluates \tcode{invoke(std::forward<F>(f), value())} and then
+returns \tcode{expected<U, E>()}.
+\end{itemize}
+\end{itemdescr}
+
+\indexlibrarymember{transform}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto transform(F&& f) &&;
+template<class F> constexpr auto transform(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be
+\tcode{remove_cv_t<invoke_result_t<F, decltype(std::move(value()))>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a valid value type for \tcode{expected}. If \tcode{is_void_v<U>} is
+\tcode{false}, the declaration
+\begin{codeblock}
+U u(invoke(std::forward<F>(f), std::move(value())));
+\end{codeblock}
+is well-formed for some invented variable \tcode{u}.
+
+\pnum
+\effects
+\begin{itemize}
+\item
+If \tcode{has_value()} is \tcode{false}, returns
+\tcode{expected<U, E>(unexpect, std::move(error()))}.
+\item
+Otherwise, if \tcode{is_void_v<U>} is \tcode{false}, returns an
+\tcode{expected<U, E>} object whose \exposid{has_val} member is \tcode{true}
+and \exposid{val} member is direct-non-list-initialized with
+\tcode{invoke(std::forward<F>(f), std::move(value()))}.
+\item
+Otherwise, evaluates \tcode{invoke(std::forward<F>(f), std::move(value()))} and
+then returns \tcode{expected<U, E>()}.
+\end{itemize}
+\end{itemdescr}
+
+\indexlibrarymember{transform_error}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto transform_error(F&& f) &;
+template<class F> constexpr auto transform_error(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be \tcode{remove_cv_t<invoke_result_t<F, decltype(error())>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<T>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{G} is a valid value type for \tcode{expected} and the declaration
+\begin{codeblock}
+G g(invoke(std::forward<F>(f), error()));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\returns
+If \tcode{has_value()} is \tcode{true},
+\tcode{expected<T, G>(in_place, value())}; otherwise, an \tcode{expected<T, G>}
+object whose \exposid{has_val} member is \tcode{false} and \exposid{unex} member
+is direct-non-list-initialized with \tcode{invoke(std::forward<F>(f), error())}.
+\end{itemdescr}
+
+\indexlibrarymember{transform_error}{expected}%
+\begin{itemdecl}
+template<class F> constexpr auto transform_error(F&& f) &&;
+template<class F> constexpr auto transform_error(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be
+\tcode{remove_cv_t<invoke_result_t<F, decltype(std::move(error()))>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<T>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{G} is a valid value type for \tcode{expected} and the declaration
+\begin{codeblock}
+G g(invoke(std::forward<F>(f), std::move(error())));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\returns
+If \tcode{has_value()} is \tcode{true},
+\tcode{expected<T, G>(in_place, std::move(value()))}; otherwise, an
+\tcode{expected<T, G>} object whose \exposid{has_val} member is \tcode{false}
+and \exposid{unex} member is direct-non-list-initialized with
+\tcode{invoke(std::forward<F>(f), std::move(error()))}.
+\end{itemdescr}
+
 \rSec3[expected.object.eq]{Equality operators}
 
 \indexlibrarymember{operator==}{expected}%
@@ -8312,9 +8630,9 @@ public:
     constexpr explicit(@\seebelow@) expected(expected<U, G>&&);
 
   template<class G>
-    constexpr expected(const unexpected<G>&);
+    constexpr explicit(@\seebelow@) expected(const unexpected<G>&);
   template<class G>
-    constexpr expected(unexpected<G>&&);
+    constexpr explicit(@\seebelow@) expected(unexpected<G>&&);
 
   constexpr explicit expected(in_place_t) noexcept;
   template<class... Args>
@@ -8349,6 +8667,26 @@ public:
   constexpr E& error() & noexcept;
   constexpr const E&& error() const && noexcept;
   constexpr E&& error() && noexcept;
+  template<class G = E> constexpr E error_or(G&&) const &;
+  template<class G = E> constexpr E error_or(G&&) &&;
+
+  // \ref{expected.void.monadic}, monadic operations
+  template<class F> constexpr auto and_then(F&& f) &;
+  template<class F> constexpr auto and_then(F&& f) &&;
+  template<class F> constexpr auto and_then(F&& f) const &;
+  template<class F> constexpr auto and_then(F&& f) const &&;
+  template<class F> constexpr auto or_else(F&& f) &;
+  template<class F> constexpr auto or_else(F&& f) &&;
+  template<class F> constexpr auto or_else(F&& f) const &;
+  template<class F> constexpr auto or_else(F&& f) const &&;
+  template<class F> constexpr auto transform(F&& f) &;
+  template<class F> constexpr auto transform(F&& f) &&;
+  template<class F> constexpr auto transform(F&& f) const &;
+  template<class F> constexpr auto transform(F&& f) const &&;
+  template<class F> constexpr auto transform_error(F&& f) &;
+  template<class F> constexpr auto transform_error(F&& f) &&;
+  template<class F> constexpr auto transform_error(F&& f) const &;
+  template<class F> constexpr auto transform_error(F&& f) const &&;
 
   // \ref{expected.void.eq}, equality operators
   template<class T2, class E2> requires is_void_v<T2>
@@ -8875,6 +9213,288 @@ constexpr const E&& error() const && noexcept;
 \pnum
 \returns
 \tcode{std::move(\exposid{unex})}.
+\end{itemdescr}
+
+\indexlibrarymember{error_or}{expected<void>}%
+\begin{itemdecl}
+template<class G = E> constexpr E error_or(G&& e) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{is_copy_constructible_v<E>} is \tcode{true} and
+\tcode{is_convertible_v<G, E>} is \tcode{true}.
+
+\pnum
+\returns
+\tcode{std::forward<G>(e)} if \tcode{has_value()} is \tcode{true},
+\tcode{error()} otherwise.
+\end{itemdescr}
+
+\indexlibrarymember{error_or}{expected<void>}%
+\begin{itemdecl}
+template<class G = E> constexpr E error_or(G&& e) &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{is_move_constructible_v<E>} is \tcode{true} and
+\tcode{is_convertible_v<G, E>} is \tcode{true}.
+
+\pnum
+\returns
+\tcode{std::forward<G>(e)} if \tcode{has_value()} is \tcode{true},
+\tcode{std::move(error())} otherwise.
+\end{itemdescr}
+
+\rSec3[expected.void.monadic]{Monadic operations}
+
+\indexlibrarymember{and_then}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto and_then(F&& f) &;
+template<class F> constexpr auto and_then(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be \tcode{remove_cvref_t<invoke_result_t<F>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a specialization of \tcode{expected} and
+\tcode{is_same_v<U::error_type, E>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return invoke(std::forward<F>(f));
+else
+  return U(unexpect, error());
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{and_then}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto and_then(F&& f) &&;
+template<class F> constexpr auto and_then(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be \tcode{remove_cvref_t<invoke_result_t<F>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a specialization of \tcode{expected} and
+\tcode{is_same_v<U::error_type, E>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return invoke(std::forward<F>(f));
+else
+  return U(unexpect, std::move(error()));
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{or_else}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto or_else(F&& f) &;
+template<class F> constexpr auto or_else(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be \tcode{remove_cvref_t<invoke_result_t<F, decltype(error())>>}.
+
+\pnum
+\mandates
+\tcode{G} is a specialization of \tcode{expected} and
+\tcode{is_same_v<G::value_type, T>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return G();
+else
+  return invoke(std::forward<F>(f), error());
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{or_else}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto or_else(F&& f) &&;
+template<class F> constexpr auto or_else(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be
+\tcode{remove_cvref_t<invoke_result_t<F, decltype(std::move(error()))>>}.
+
+\pnum
+\mandates
+\tcode{G} is a specialization of \tcode{expected} and
+\tcode{is_same_v<G::value_type, T>} is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+if (has_value())
+  return G();
+else
+  return invoke(std::forward<F>(f), std::move(error()));
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{transform}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto transform(F&& f) &;
+template<class F> constexpr auto transform(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be \tcode{remove_cv_t<invoke_result_t<F>>}.
+
+\pnum
+\constraints
+\tcode{is_copy_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a valid value type for \tcode{expected}. If \tcode{is_void_v<U>} is
+\tcode{false}, the declaration
+\begin{codeblock}
+U u(invoke(std::forward<F>(f)));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\effects
+\begin{itemize}
+\item
+If \tcode{has_value()} is \tcode{false}, returns
+\tcode{expected<U, E>(unexpect, error())}.
+\item
+Otherwise, if \tcode{is_void_v<U>} is \tcode{false}, returns an
+\tcode{expected<U, E>} object whose \exposid{has_val} member is \tcode{true} and
+\exposid{val} member is direct-non-list-initialized with
+\tcode{invoke(std::forward<F>(f))}.
+\item
+Otherwise, evaluates \tcode{invoke(std::forward<F>(f))} and then returns
+\tcode{expected<U, E>()}.
+\end{itemize}
+\end{itemdescr}
+
+\indexlibrarymember{transform}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto transform(F&& f) &&;
+template<class F> constexpr auto transform(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{U} be \tcode{remove_cv_t<invoke_result_t<F>>}.
+
+\pnum
+\constraints
+\tcode{is_move_constructible_v<E>} is \tcode{true}.
+
+\pnum
+\mandates
+\tcode{U} is a valid value type for \tcode{expected}. If \tcode{is_void_v<U>} is
+\tcode{false}, the declaration
+\begin{codeblock}
+U u(invoke(std::forward<F>(f)));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\effects
+\begin{itemize}
+\item
+If \tcode{has_value()} is \tcode{false}, returns
+\tcode{expected<U, E>(unexpect, std::move(error()))}.
+\item
+Otherwise, if \tcode{is_void_v<U>} is \tcode{false}, returns an
+\tcode{expected<U, E>} object whose \exposid{has_val} member is \tcode{true} and
+\exposid{val} member is direct-non-list-initialized with
+\tcode{invoke(std::forward<F>(f))}.
+\item
+Otherwise, evaluates \tcode{invoke(std::forward<F>(f))} and then returns
+\tcode{expected<U, E>()}.
+\end{itemize}
+\end{itemdescr}
+
+\indexlibrarymember{transform_error}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto transform_error(F&& f) &;
+template<class F> constexpr auto transform_error(F&& f) const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be \tcode{remove_cv_t<invoke_result_t<F, decltype(error())>>}.
+
+\pnum
+\mandates
+\tcode{G} is a valid value type for \tcode{expected} and the declaration
+\begin{codeblock}
+G g(invoke(std::forward<F>(f), error()));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\returns
+If \tcode{has_value()} is \tcode{true}, \tcode{expected<T, G>()}; otherwise, an
+\tcode{expected<T, G>} object whose \exposid{has_val} member is \tcode{false}
+and \exposid{unex} member is direct-non-list-initialized with
+\tcode{invoke(std::for\-ward<F>(f), error())}.
+\end{itemdescr}
+
+\indexlibrarymember{transform_error}{expected<void>}%
+\begin{itemdecl}
+template<class F> constexpr auto transform_error(F&& f) &&;
+template<class F> constexpr auto transform_error(F&& f) const &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{G} be
+\tcode{remove_cv_t<invoke_result_t<F, decltype(std::move(error()))>>}.
+
+\pnum
+\mandates
+\tcode{G} is a valid value type for \tcode{expected} and the declaration
+\begin{codeblock}
+G g(invoke(std::forward<F>(f), std::move(error())));
+\end{codeblock}
+is well-formed.
+
+\pnum
+\returns
+If \tcode{has_value()} is \tcode{true}, \tcode{expected<T, G>()}; otherwise, an
+\tcode{expected<T, G>} object whose \exposid{has_val} member is \tcode{false}
+and \exposid{unex} member is direct-non-list-initialized with
+\tcode{invoke(std::for\-ward<F>(f), std::move(error()))}.
 \end{itemdescr}
 
 \rSec3[expected.void.eq]{Equality operators}
@@ -9732,10 +10352,9 @@ nor
 \end{itemize}
 
 \pnum
-If \tcode{N > 0} and no characters are stored in \tcode{str}, calls
-\tcode{is.setstate(ios_base::failbit)}
-(which may throw
-\tcode{ios_base::failure}\iref{iostate.flags}).
+If \tcode{N > 0} and no characters are stored in \tcode{str},
+\tcode{ios_base::failbit} is set in the input function's local error state
+before \tcode{setstate} is called.
 
 \pnum
 \returns
@@ -9874,11 +10493,11 @@ namespace std {
   // \ref{func.bind}, bind
   template<class T> struct is_bind_expression;                                      // freestanding
   template<class T>
-    inline constexpr bool @\libglobal{is_bind_expression_v}@ =                                    // freestanding
+    constexpr bool @\libglobal{is_bind_expression_v}@ =                                           // freestanding
       is_bind_expression<T>::value;
   template<class T> struct is_placeholder;                                          // freestanding
   template<class T>
-    inline constexpr int @\libglobal{is_placeholder_v}@ =                                         // freestanding
+    constexpr int @\libglobal{is_placeholder_v}@ =                                                // freestanding
       is_placeholder<T>::value;
 
   template<class F, class... BoundArgs>
@@ -10009,6 +10628,7 @@ collectively referred to as \defnx{state entities}{state entity}.
 \rSec2[func.require]{Requirements}
 
 \pnum
+\indextext{invoke@\tcode{\placeholder{INVOKE}}}%
 \indexlibrary{invoke@\tcode{\placeholder{INVOKE}}}%
 Define \tcode{\placeholdernc{INVOKE}(f, t$_1$, t$_2$, $\dotsc$, t$_N$)} as follows:
 \begin{itemize}
@@ -10181,7 +10801,8 @@ namespace std {
 
     // \ref{refwrap.invoke}, invocation
     template<class... ArgTypes>
-      constexpr invoke_result_t<T&, ArgTypes...> operator()(ArgTypes&&...) const;
+      constexpr invoke_result_t<T&, ArgTypes...> operator()(ArgTypes&&...) const
+        noexcept(is_nothrow_invocable_v<T&, ArgTypes...>);
   };
 
   template<class T>
@@ -10290,7 +10911,7 @@ The stored reference.
 \begin{itemdecl}
 template<class... ArgTypes>
   constexpr invoke_result_t<T&, ArgTypes...>
-    operator()(ArgTypes&&... args) const;
+    operator()(ArgTypes&&... args) const noexcept(is_nothrow_invocable_v<T&, ArgTypes...>);
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -11790,9 +12411,13 @@ its corresponding type $\tcode{V}_\tcode{fd}$ is \tcode{\cv{} FD\&}.
 \indexlibrary{8@\tcode{_8}}%
 \indexlibrary{9@\tcode{_9}}%
 \indexlibrary{10@\tcode{_10}}%
+% FIXME: Fomatting for M and the members _1, _2, _M below,
+% as well as their usages elsewhere is inconsistent.
+% Should they all follow the formatting used in delcaration of
+% "namespace placeholders" in [functional.syn]?
 \begin{codeblock}
 namespace std::placeholders {
-  // M is the \impldef{number of placeholders for bind expressions} number of placeholders
+  // M is the number of placeholders
   @\seebelow@ _1;
   @\seebelow@ _2;
               .
@@ -11801,6 +12426,10 @@ namespace std::placeholders {
   @\seebelow@ _M;
 }
 \end{codeblock}
+
+\pnum
+The number \tcode{\placeholder{M}} of placeholders is
+\impldef{number of placeholders for bind expressions}.
 
 \pnum
 All placeholder types meet the \oldconcept{DefaultConstructible} and
@@ -11825,7 +12454,8 @@ extern @\unspec@ _1;
 \indextext{function object!binders|)}
 
 \pnum
-Placeholders are freestanding entities\iref{freestanding.entity}.
+\indextext{placeholders!freestanding item}%
+Placeholders are freestanding items\iref{freestanding.item}.
 
 \rSec2[func.memfn]{Function template \tcode{mem_fn}}%
 \indextext{function object!\idxcode{mem_fn}|(}
@@ -12423,7 +13053,7 @@ for which \tcode{is_nothrow_move_constructible_v<T>} is \tcode{true}.
 
 \rSec4[func.wrap.move.ctor]{Constructors, assignment, and destructor}
 
-\indexlibrarymember{\exposid{is-callable-from}}{move_only_function}%
+\indextext{move_only_function::is-callable-from@\tcode{move_only_function::\exposid{is-callable-from}}}%
 \begin{itemdecl}
 template<class VT>
   static constexpr bool @\exposid{is-callable-from}@ = @\seebelow@;
@@ -13080,7 +13710,7 @@ An enabled specialization \tcode{hash<Key>} will:
 with \tcode{Key} as the function
 call argument type, the \oldconcept{Default\-Constructible} requirements (\tref{cpp17.defaultconstructible}),
 the \oldconcept{CopyAssignable} requirements (\tref{cpp17.copyassignable}),
-\item be swappable\iref{swappable.requirements} for lvalues,
+the \oldconcept{Swappable} requirements\iref{swappable.requirements},
 \item meet the requirement that if \tcode{k1 == k2} is \tcode{true}, \tcode{h(k1) == h(k2)} is
 also \tcode{true}, where \tcode{h} is an object of type \tcode{hash<Key>} and \tcode{k1} and \tcode{k2}
 are objects of type \tcode{Key};
@@ -13296,7 +13926,7 @@ parameters for efficient execution.
 namespace std {
   // \ref{execpol.type}, execution policy type trait
   template<class T> struct is_execution_policy;
-  template<class T> inline constexpr bool @\libglobal{is_execution_policy_v}@ = is_execution_policy<T>::value;
+  template<class T> constexpr bool @\libglobal{is_execution_policy_v}@ = is_execution_policy<T>::value;
 }
 
 namespace std::execution {
@@ -14109,7 +14739,7 @@ is interpreted.
 \rSec3[format.string.std]{Standard format specifiers}
 
 \pnum
-Each \tcode{formatter} specializations
+Each \tcode{formatter} specialization
 described in \ref{format.formatter.spec}
 for fundamental and string types
 interprets \fmtgrammarterm{format-spec} as a
@@ -14364,7 +14994,7 @@ For a string in a Unicode encoding,
 implementations should estimate the width of a string
 as the sum of estimated widths of
 the first code points in its extended grapheme clusters.
-The extended grapheme clusters of a string are defined by UAX \#29.
+The extended grapheme clusters of a string are defined by \UAX{29}.
 The estimated width of the following code points is 2:
 \begin{itemize}
 \item \ucode{1100} -- \ucode{115f}
@@ -15002,25 +15632,18 @@ As specified in~\ref{format.err.report}.
 \rSec3[formatter.requirements]{Formatter requirements}
 
 \pnum
-A type \tcode{F} meets the \defnnewoldconcept{BasicFormatter} requirements if:
-\begin{itemize}
-\item
+A type \tcode{F} meets the \defnnewoldconcept{BasicFormatter} requirements if
 it meets the
 \begin{itemize}
 \item \oldconcept{DefaultConstructible} (\tref{cpp17.defaultconstructible}),
 \item \oldconcept{CopyConstructible} (\tref{cpp17.copyconstructible}),
-\item \oldconcept{CopyAssignable} (\tref{cpp17.copyassignable}), and
+\item \oldconcept{CopyAssignable} (\tref{cpp17.copyassignable}),
+\item \oldconcept{Swappable}\iref{swappable.requirements}, and
 \item \oldconcept{Destructible} (\tref{cpp17.destructible})
 \end{itemize}
-requirements,
-
-\item
-it is swappable\iref{swappable.requirements} for lvalues, and
-
-\item
+requirements, and
 the expressions shown in \tref{formatter.basic} are valid and
 have the indicated semantics.
-\end{itemize}
 
 \pnum
 A type \tcode{F} meets the \defnnewoldconcept{Formatter} requirements
@@ -15033,7 +15656,8 @@ Given character type \tcode{charT}, output iterator type
 \tcode{Out}, and formatting argument type \tcode{T},
 in \tref{formatter.basic} and \tref{formatter}:
 \begin{itemize}
-\item \tcode{f} is a value of type \tcode{F},
+\item \tcode{f} is a value of type (possibly const) \tcode{F},
+\item \tcode{g} is an lvalue of type \tcode{F},
 \item \tcode{u} is an lvalue of type \tcode{T},
 \item \tcode{t} is a value of a type convertible to (possibly const) \tcode{T},
 \item \tcode{PC} is \tcode{basic_format_parse_context<charT>},
@@ -15053,7 +15677,7 @@ If \fmtgrammarterm{format-spec} is empty then either
 {p{1.2in}p{1in}p{2.9in}}
 \topline
 \hdstyle{Expression} & \hdstyle{Return type} & \hdstyle{Requirement} \\ \capsep
-\tcode{f.parse(pc)} &
+\tcode{g.parse(pc)} &
 \tcode{PC::iterator} &
 Parses \fmtgrammarterm{format-spec}\iref{format.string}
 for type \tcode{T}
@@ -15251,7 +15875,7 @@ enum color { red, green, blue };
 const char* color_names[] = { "red", "green", "blue" };
 
 template<> struct std::formatter<color> : std::formatter<const char*> {
-  auto format(color c, format_context& ctx) {
+  auto format(color c, format_context& ctx) const {
     return formatter<const char*>::format(color_names[c], ctx);
   }
 };
@@ -15311,7 +15935,7 @@ Otherwise, if \placeholder{C} is not \unicode{0020}{space} and
 a UCS scalar value whose Unicode property \tcode{General_Category}
 has a value in the groups \tcode{Separator} (\tcode{Z}) or \tcode{Other} (\tcode{C}) or to
 a UCS scalar value which has the Unicode property \tcode{Grapheme_Extend=Yes},
-as described by table 12 of UAX \#44, or
+as described by table 12 of \UAX{44}, or
 
 \item
 \placeholder{CE} is not a Unicode encoding and
@@ -15405,8 +16029,7 @@ string s3 = format("[{:?}, {:?}]", '\'', '"');      // \tcode{s3} has value: \tc
 // The following examples assume use of the UTF-8 encoding
 string s4 = format("[{:?}]", string("\0 \n \t \x02 \x1b", 9));
                                                     // \tcode{s4} has value: \tcode{["\textbackslash u\{0\} \textbackslash n \textbackslash t \textbackslash u\{2\} \textbackslash u\{1b\}"]}
-string s5 = format("[{:?}]", "\xc3\x28");           // invalid UTF-8
-                                                    // \tcode{s5} has value: \tcode{["\textbackslash x\{c3\}\textbackslash x\{28\}"]}
+string s5 = format("[{:?}]", "\xc3\x28");           // invalid UTF-8, \tcode{s5} has value: \tcode{["\textbackslash x\{c3\}("]}
 \end{codeblock}
 \end{example}
 
@@ -15685,7 +16308,7 @@ template<> struct std::formatter<S> {
   }
 
   // Formats an \tcode{S} with width given by the argument \tcode{width_arg_id}.
-  auto format(S s, format_context& ctx) {
+  auto format(S s, format_context& ctx) const {
     int width = visit_format_arg([](auto value) -> int {
       if constexpr (!is_integral_v<decltype(value)>)
         throw format_error("width is not integral");
@@ -15998,7 +16621,7 @@ An iterator past the end of the output range.
 
 \rSec3[format.range.fmtdef]{Class template \exposid{range-default-formatter}}
 
-\indexlibraryglobal{\exposid{range-default-formatter}}%
+\indexlibrary{range-default-formatter@\exposid{range-default-formatter}}%
 \begin{codeblock}
 namespace std {
   template<ranges::@\libconcept{input_range}@ R, class charT>
@@ -16024,7 +16647,7 @@ namespace std {
 }
 \end{codeblock}
 
-\indexlibrarymember{set_separator}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{set_separator}{range-default-formatter}%
 \begin{itemdecl}
 constexpr void set_separator(basic_string_view<charT> sep);
 \end{itemdecl}
@@ -16035,7 +16658,7 @@ constexpr void set_separator(basic_string_view<charT> sep);
 Equivalent to: \tcode{\exposid{underlying_}.set_separator(sep);}
 \end{itemdescr}
 
-\indexlibrarymember{set_brackets}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{set_brackets}{range-default-formatter}%
 \begin{itemdecl}
 constexpr void set_brackets(basic_string_view<charT> opening, basic_string_view<charT> closing);
 \end{itemdecl}
@@ -16046,7 +16669,7 @@ constexpr void set_brackets(basic_string_view<charT> opening, basic_string_view<
 Equivalent to: \tcode{\exposid{underlying_}.set_brackets(opening, closing);}
 \end{itemdescr}
 
-\indexlibrarymember{parse}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{parse}{range-default-formatter}%
 \begin{itemdecl}
 template<class ParseContext>
   constexpr typename ParseContext::iterator
@@ -16059,7 +16682,7 @@ template<class ParseContext>
 Equivalent to: \tcode{return \exposid{underlying_}.parse(ctx);}
 \end{itemdescr}
 
-\indexlibrarymember{format}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{format}{range-default-formatter}%
 \begin{itemdecl}
 template<class FormatContext>
   typename FormatContext::iterator
@@ -16074,7 +16697,7 @@ Equivalent to: \tcode{return \exposid{underlying_}.format(elems, ctx);}
 
 \rSec3[format.range.fmtmap]{Specialization of \exposid{range-default-formatter} for maps}
 
-\indexlibraryglobal{\exposid{range-default-formatter}}%
+\indexlibrary{range-default-formatter@\exposid{range-default-formatter}}%
 \begin{codeblock}
 namespace std {
   template<ranges::@\libconcept{input_range}@ R, class charT>
@@ -16084,6 +16707,7 @@ namespace std {
     using @\exposidnc{element-type}@ =                                                // \expos
       remove_cvref_t<ranges::range_reference_t<@\exposid{maybe-const-map}@>>;
     range_formatter<@\exposidnc{element-type}@, charT> @\exposid{underlying_}@;                   // \expos
+
   public:
     constexpr @\exposid{range-default-formatter}@();
 
@@ -16098,7 +16722,7 @@ namespace std {
 }
 \end{codeblock}
 
-\indexlibraryctor{\exposid{range-default-formatter}}%
+\indexlibrarymisc{range-default-formatter@\exposid{range-default-formatter}}{constructor}%
 \begin{itemdecl}
 constexpr @\exposid{range-default-formatter}@();
 \end{itemdecl}
@@ -16125,7 +16749,7 @@ Equivalent to:
 \end{codeblock}
 \end{itemdescr}
 
-\indexlibrarymember{parse}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{parse}{range-default-formatter}%
 \begin{itemdecl}
 template<class ParseContext>
   constexpr typename ParseContext::iterator
@@ -16138,7 +16762,7 @@ template<class ParseContext>
 Equivalent to: \tcode{return \exposid{underlying_}.parse(ctx);}
 \end{itemdescr}
 
-\indexlibrarymember{format}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{format}{range-default-formatter}%
 \begin{itemdecl}
 template<class FormatContext>
   typename FormatContext::iterator
@@ -16153,7 +16777,7 @@ Equivalent to: \tcode{return \exposid{underlying_}.format(r, ctx);}
 
 \rSec3[format.range.fmtset]{Specialization of \exposid{range-default-formatter} for sets}
 
-\indexlibraryglobal{\exposid{range-default-formatter}}%
+\indexlibrary{range-default-formatter@\exposid{range-default-formatter}}%
 \begin{codeblock}
 namespace std {
   template<ranges::@\libconcept{input_range}@ R, class charT>
@@ -16177,7 +16801,7 @@ namespace std {
 }
 \end{codeblock}
 
-\indexlibraryctor{\exposid{range-default-formatter}}%
+\indexlibrarymisc{range-default-formatter@\exposid{range-default-formatter}}{constructor}%
 \begin{itemdecl}
 constexpr @\exposid{range-default-formatter}@();
 \end{itemdecl}
@@ -16191,7 +16815,7 @@ Equivalent to:
 \end{codeblock}
 \end{itemdescr}
 
-\indexlibrarymember{parse}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{parse}{range-default-formatter}%
 \begin{itemdecl}
 template<class ParseContext>
   constexpr typename ParseContext::iterator
@@ -16204,7 +16828,7 @@ template<class ParseContext>
 Equivalent to: \tcode{return \exposid{underlying_}.parse(ctx);}
 \end{itemdescr}
 
-\indexlibrarymember{format}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{format}{range-default-formatter}%
 \begin{itemdecl}
 template<class FormatContext>
   typename FormatContext::iterator
@@ -16219,7 +16843,7 @@ Equivalent to: \tcode{return \exposid{underlying_}.format(r, ctx);}
 
 \rSec3[format.range.fmtstr]{Specialization of \exposid{range-default-formatter} for strings}
 
-\indexlibraryglobal{\exposid{range-default-formatter}}%
+\indexlibrary{range-default-formatter@\exposid{range-default-formatter}}%
 \begin{codeblock}
 namespace std {
   template<range_format K, ranges::@\libconcept{input_range}@ R, class charT>
@@ -16245,7 +16869,7 @@ namespace std {
 \tcode{\libconcept{same_as}<remove_cvref_t<range_reference_t<R>>, charT>}
 is \tcode{true}.
 
-\indexlibrarymember{parse}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{parse}{range-default-formatter}%
 \begin{itemdecl}
 template<class ParseContext>
   constexpr typename ParseContext::iterator
@@ -16265,7 +16889,7 @@ return i;
 \end{codeblock}
 \end{itemdescr}
 
-\indexlibrarymember{format}{\exposid{range-default-formatter}}%
+\indexlibrarymemberexpos{format}{range-default-formatter}%
 \begin{itemdecl}
 template<class FormatContext>
   typename FormatContext::iterator
@@ -16585,7 +17209,7 @@ template<class Visitor, class Context>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{return visit(forward<Visitor>(vis), arg.value);}
+Equivalent to: \tcode{return visit(std::forward<Visitor>(vis), arg.value);}
 \end{itemdescr}
 
 \rSec3[format.arg.store]{Class template \exposid{format-arg-store}}

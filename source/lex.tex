@@ -66,7 +66,6 @@ occur, although in practice different phases can be folded together.
 \begin{enumerate}
 \item
 \indextext{character!source file}%
-\indextext{character set!basic source}%
 An implementation shall support input files
 that are a sequence of UTF-8 code units (UTF-8 files).
 It may also support
@@ -83,12 +82,18 @@ If an input file is determined to be a UTF-8 file,
 then it shall be a well-formed UTF-8 code unit sequence and
 it is decoded to produce a sequence of UCS scalar values
 that constitutes the sequence of elements of the translation character set.
+In the resulting sequence,
+each pair of characters in the input sequence consisting of
+\unicode{000d}{carriage return} followed by \unicode{000a}{line feed},
+as well as each
+\unicode{000d}{carriage return} not immediately followed by a \unicode{000a}{line feed},
+is replaced by a single new-line character.
 
 For any other kind of input file supported by the implementation,
 characters are mapped, in an
 \impldef{mapping physical source file characters to translation character set} manner,
-to a sequence of translation character set elements\iref{lex.charset}
-(introducing new-line characters for end-of-line indicators).
+to a sequence of translation character set elements\iref{lex.charset},
+representing end-of-line indicators as new-line characters.
 
 \item
 \indextext{line splicing}%
@@ -309,10 +314,7 @@ other characters.
 
 \begin{bnf}
 \nontermdef{n-char} \textnormal{one of}\br
-    \terminal{A B C D E F G H I J K L M N O P Q R S T U V W X Y Z}\br
-    \terminal{0 1 2 3 4 5 6 7 8 9}\br
-    \textnormal{\unicode{002d}{hyphen-minus}}\br
-    \textnormal{\unicode{0020}{space}}
+     \textnormal{any member of the translation character set except the \unicode{007d}{right curly bracket} or new-line character}
 \end{bnf}
 
 \begin{bnf}
@@ -912,7 +914,7 @@ a \grammarterm{floating-point-literal} token.%
 \indextext{name!length of}%
 \indextext{name}%
 The character classes XID_Start and XID_Continue
-are Derived Core Properties as described by UAX \#44.
+are Derived Core Properties as described by \UAX{44}.
 \begin{footnote}
 On systems in which linkers cannot accept extended
 characters, an encoding of the \grammarterm{universal-character-name} can be used in
@@ -1174,6 +1176,10 @@ ISO C.
     pointer-literal\br
     user-defined-literal
 \end{bnf}
+\begin{note}
+When appearing as an \grammarterm{expression},
+a literal has a type and a value category\iref{expr.prim.literal}.
+\end{note}
 
 \rSec2[lex.icon]{Integer literals}
 
@@ -1326,7 +1332,6 @@ The type of an \grammarterm{integer-literal} is
 the first type in the list in \tref{lex.icon.type}
 corresponding to its optional \grammarterm{integer-suffix}
 in which its value can be represented.
-An \grammarterm{integer-literal} is a prvalue.
 
 \begin{floattable}{Types of \grammarterm{integer-literal}s}{lex.icon.type}{l|l|l}
 \topline
@@ -1536,7 +1541,7 @@ Such \grammarterm{character-literal}s are conditionally-supported.
 
 \pnum
 The kind of a \grammarterm{character-literal},
-its type, and its associated character encoding
+its type, and its associated character encoding\iref{lex.charset}
 are determined by
 its \grammarterm{encoding-prefix} and its \grammarterm{c-char-sequence}
 as defined by \tref{lex.ccon.literal}.
@@ -1897,7 +1902,7 @@ chosen in an \impldef{choice of larger or smaller value of
 \indextext{type!\idxcode{char32_t}}%
 The kind of a \grammarterm{string-literal},
 its type, and
-its associated character encoding
+its associated character encoding\iref{lex.charset}
 are determined by its encoding prefix and sequence of
 \grammarterm{s-char}s or \grammarterm{r-char}s
 as defined by \tref{lex.string.literal}
@@ -2070,7 +2075,6 @@ The effect of attempting to modify a string literal object is undefined.
 \end{note}
 
 \pnum
-\indextext{\idxcode{0}|seealso{zero, null}}%
 \indextext{\idxcode{0}!string terminator}%
 \indextext{\idxcode{0}!null character|see {character, null}}%
 String literal objects are initialized with
@@ -2161,7 +2165,7 @@ what effect these sequences have on encoding state.
 \pnum
 \indextext{Boolean literal}%
 The Boolean literals are the keywords \tcode{false} and \tcode{true}.
-Such literals are prvalues and have type \tcode{bool}.
+Such literals have type \tcode{bool}.
 
 \rSec2[lex.nullptr]{Pointer literals}
 
@@ -2172,7 +2176,7 @@ Such literals are prvalues and have type \tcode{bool}.
 \end{bnf}
 
 \pnum
-The pointer literal is the keyword \keyword{nullptr}. It is a prvalue of type
+The pointer literal is the keyword \keyword{nullptr}. It has type
 \tcode{std::nullptr_t}.
 \begin{note}
 \tcode{std::nullptr_t} is a distinct type that is neither a pointer type nor a pointer-to-member type;

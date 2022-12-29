@@ -390,6 +390,7 @@ that the availability of an attribute can be detected by any non-zero result.
 {ll}
 \topline
 \lhdr{Attribute} & \rhdr{Value} \\ \rowsep
+\tcode{assume}                & \tcode{202207L} \\
 \tcode{carries_dependency}    & \tcode{200809L} \\
 \tcode{deprecated}            & \tcode{201309L} \\
 \tcode{fallthrough}           & \tcode{201603L} \\
@@ -1765,7 +1766,8 @@ as an extended floating-point type.
 \mname{STDCPP_BFLOAT16_T}\\
 Defined as the integer literal \tcode{1}
 if and only if the implementation supports an extended floating-point type
-with the properties described in \ref{basic.extended.fp}.
+with the properties of the \grammarterm{typedef-name} \tcode{std::bfloat16_t}
+as described in \ref{basic.extended.fp}.
 
 \item
 \indextext{__time__@\mname{TIME}}%
@@ -1799,10 +1801,10 @@ an \impldef{text of \mname{TIME} when time of translation is not available} vali
 \defnxname{cpp_char8_t}                           & \tcode{202207L} \\ \rowsep
 \defnxname{cpp_concepts}                          & \tcode{202002L} \\ \rowsep
 \defnxname{cpp_conditional_explicit}              & \tcode{201806L} \\ \rowsep
-\defnxname{cpp_constexpr}                         & \tcode{202207L} \\ \rowsep
+\defnxname{cpp_constexpr}                         & \tcode{202211L} \\ \rowsep
 \defnxname{cpp_constexpr_dynamic_alloc}           & \tcode{201907L} \\ \rowsep
 \defnxname{cpp_constexpr_in_decltype}             & \tcode{201711L} \\ \rowsep
-\defnxname{cpp_consteval}                         & \tcode{201811L} \\ \rowsep
+\defnxname{cpp_consteval}                         & \tcode{202211L} \\ \rowsep
 \defnxname{cpp_constinit}                         & \tcode{201907L} \\ \rowsep
 \defnxname{cpp_decltype}                          & \tcode{200707L} \\ \rowsep
 \defnxname{cpp_decltype_auto}                     & \tcode{201304L} \\ \rowsep
@@ -1827,7 +1829,7 @@ an \impldef{text of \mname{TIME} when time of translation is not available} vali
 \defnxname{cpp_inline_variables}                  & \tcode{201606L} \\ \rowsep
 \defnxname{cpp_lambdas}                           & \tcode{200907L} \\ \rowsep
 \defnxname{cpp_modules}                           & \tcode{201907L} \\ \rowsep
-\defnxname{cpp_multidimensional_subscript}        & \tcode{202110L} \\ \rowsep
+\defnxname{cpp_multidimensional_subscript}        & \tcode{202211L} \\ \rowsep
 \defnxname{cpp_named_character_escapes}           & \tcode{202207L} \\ \rowsep
 \defnxname{cpp_namespace_attributes}              & \tcode{201411L} \\ \rowsep
 \defnxname{cpp_noexcept_function_type}            & \tcode{201510L} \\ \rowsep

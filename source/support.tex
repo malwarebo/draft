@@ -591,7 +591,7 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_clamp}@                             201603L // also in \libheader{algorithm}
 #define @\defnlibxname{cpp_lib_complex_udls}@                      201309L // also in \libheader{complex}
 #define @\defnlibxname{cpp_lib_concepts}@                          202207L // also in \libheader{concepts}, \libheader{compare}
-#define @\defnlibxname{cpp_lib_constexpr_algorithms}@              201806L // also in \libheader{algorithm}
+#define @\defnlibxname{cpp_lib_constexpr_algorithms}@              201806L // also in \libheader{algorithm}, \libheader{utility}
 #define @\defnlibxname{cpp_lib_constexpr_bitset}@                  202202L // also in \libheader{bitset}
 #define @\defnlibxname{cpp_lib_constexpr_charconv}@                202207L // also in \libheader{charconv}
 #define @\defnlibxname{cpp_lib_constexpr_cmath}@                   202202L // also in \libheader{cmath}, \libheader{cstdlib}
@@ -619,11 +619,13 @@ the values of these macros with greater values.
   // \libheader{unordered_set}
 #define @\defnlibxname{cpp_lib_exchange_function}@                 201304L // also in \libheader{utility}
 #define @\defnlibxname{cpp_lib_execution}@                         201902L // also in \libheader{execution}
-#define @\defnlibxname{cpp_lib_expected}@                          202202L // also in \libheader{expected}
+#define @\defnlibxname{cpp_lib_expected}@                          202211L // also in \libheader{expected}
 #define @\defnlibxname{cpp_lib_filesystem}@                        201703L // also in \libheader{filesystem}
 #define @\defnlibxname{cpp_lib_find_last}@                         202207L // also in \libheader{algorithm}
 #define @\defnlibxname{cpp_lib_flat_map}@                          202207L // also in \libheader{flat_map}
+#define @\defnlibxname{cpp_lib_flat_set}@                          202207L // also in \libheader{flat_set}
 #define @\defnlibxname{cpp_lib_format}@                            202207L // also in \libheader{format}
+#define @\defnlibxname{cpp_lib_format_ranges}@                     202207L // also in \libheader{format}
 #define @\defnlibxname{cpp_lib_forward_like}@                      202207L // also in \libheader{utility}
 #define @\defnlibxname{cpp_lib_gcd_lcm}@                           201606L // also in \libheader{numeric}
 #define @\defnlibxname{cpp_lib_generator}@                         202207L // also in \libheader{generator}
@@ -682,7 +684,7 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_polymorphic_allocator}@             201902L // also in \libheader{memory_resource}
 #define @\defnlibxname{cpp_lib_print}@                             202207L // also in \libheader{print}, \libheader{ostream}
 #define @\defnlibxname{cpp_lib_quoted_string_io}@                  201304L // also in \libheader{iomanip}
-#define @\defnlibxname{cpp_lib_ranges}@                            202207L
+#define @\defnlibxname{cpp_lib_ranges}@                            202211L
   // also in \libheader{algorithm}, \libheader{functional}, \libheader{iterator}, \libheader{memory}, \libheader{ranges}
 #define @\defnlibxname{cpp_lib_ranges_as_const}@                   202207L // also in \libheader{ranges}
 #define @\defnlibxname{cpp_lib_ranges_as_rvalue}@                  202207L // also in \libheader{ranges}
@@ -1744,8 +1746,9 @@ namespace std {
 The header \libheader{climits} defines all macros the same as
 the C standard library header \libheader{limits.h}.
 \begin{note}
-The types of the constants defined by macros in \libheader{climits} are not
-required to match the types to which the macros refer.
+Except for \tcode{CHAR_BIT} and \tcode{MB_LEN_MAX}, a macro referring to
+an integer type \tcode{T} defines a constant whose type is the promoted
+type of \tcode{T}\iref{conv.prom}.
 \end{note}
 
 \xrefc{5.2.4.2.1}
@@ -2286,12 +2289,12 @@ namespace std {
 [[nodiscard]] void* operator new(std::size_t size, std::align_val_t alignment,
                                  const std::nothrow_t&) noexcept;
 
-void  operator delete(void* ptr) noexcept;
-void  operator delete(void* ptr, std::size_t size) noexcept;
-void  operator delete(void* ptr, std::align_val_t alignment) noexcept;
-void  operator delete(void* ptr, std::size_t size, std::align_val_t alignment) noexcept;
-void  operator delete(void* ptr, const std::nothrow_t&) noexcept;
-void  operator delete(void* ptr, std::align_val_t alignment, const std::nothrow_t&) noexcept;
+void operator delete(void* ptr) noexcept;
+void operator delete(void* ptr, std::size_t size) noexcept;
+void operator delete(void* ptr, std::align_val_t alignment) noexcept;
+void operator delete(void* ptr, std::size_t size, std::align_val_t alignment) noexcept;
+void operator delete(void* ptr, const std::nothrow_t&) noexcept;
+void operator delete(void* ptr, std::align_val_t alignment, const std::nothrow_t&) noexcept;
 
 [[nodiscard]] void* operator new[](std::size_t size);
 [[nodiscard]] void* operator new[](std::size_t size, std::align_val_t alignment);
@@ -2299,17 +2302,17 @@ void  operator delete(void* ptr, std::align_val_t alignment, const std::nothrow_
 [[nodiscard]] void* operator new[](std::size_t size, std::align_val_t alignment,
                                    const std::nothrow_t&) noexcept;
 
-void  operator delete[](void* ptr) noexcept;
-void  operator delete[](void* ptr, std::size_t size) noexcept;
-void  operator delete[](void* ptr, std::align_val_t alignment) noexcept;
-void  operator delete[](void* ptr, std::size_t size, std::align_val_t alignment) noexcept;
-void  operator delete[](void* ptr, const std::nothrow_t&) noexcept;
-void  operator delete[](void* ptr, std::align_val_t alignment, const std::nothrow_t&) noexcept;
+void operator delete[](void* ptr) noexcept;
+void operator delete[](void* ptr, std::size_t size) noexcept;
+void operator delete[](void* ptr, std::align_val_t alignment) noexcept;
+void operator delete[](void* ptr, std::size_t size, std::align_val_t alignment) noexcept;
+void operator delete[](void* ptr, const std::nothrow_t&) noexcept;
+void operator delete[](void* ptr, std::align_val_t alignment, const std::nothrow_t&) noexcept;
 
 [[nodiscard]] void* operator new  (std::size_t size, void* ptr) noexcept;
 [[nodiscard]] void* operator new[](std::size_t size, void* ptr) noexcept;
-void  operator delete  (void* ptr, void*) noexcept;
-void  operator delete[](void* ptr, void*) noexcept;
+void operator delete  (void* ptr, void*) noexcept;
+void operator delete[](void* ptr, void*) noexcept;
 \end{codeblock}
 
 \rSec2[new.delete]{Storage allocation and deallocation}
@@ -3394,11 +3397,10 @@ namespace std {
 The type \tcode{source_location} meets the
 \oldconcept{DefaultConstructible},
 \oldconcept{CopyConstructible},
-\oldconcept{Copy\-Assignable}, and
+\oldconcept{Copy\-Assignable},
+\oldconcept{Swappable}, and
 \oldconcept{Destructible}
-requirements\iref{utility.arg.requirements}.
-Lvalues of type \tcode{source_location}
-are swappable\iref{swappable.requirements}.
+requirements\iref{utility.arg.requirements,swappable.requirements}.
 All of the following conditions are \tcode{true}:
 \begin{itemize}
 \item \tcode{is_nothrow_move_constructible_v<source_location>}
@@ -4921,8 +4923,8 @@ is expression-equivalent\iref{defns.expression.equivalent} to the following:
 \item
   Otherwise, \tcode{strong_ordering(strong_order(E, F))}
   if it is a well-formed expression
-  with overload resolution performed in a context
-  that does not include a declaration of \tcode{std::strong_order}.
+  where the meaning of \tcode{strong_order} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep}.
 \item
   Otherwise, if the decayed type \tcode{T} of \tcode{E} is
   a floating-point type,
@@ -4959,8 +4961,8 @@ is expression-equivalent\iref{defns.expression.equivalent} to the following:
 \item
   Otherwise, \tcode{weak_ordering(weak_order(E, F))}
   if it is a well-formed expression
-  with overload resolution performed in a context
-  that does not include a declaration of \tcode{std::weak_order}.
+  where the meaning of \tcode{weak_order} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep}.
 \item
   Otherwise, if the decayed type \tcode{T} of \tcode{E}
   is a floating-point type,
@@ -5011,8 +5013,8 @@ is expression-equivalent\iref{defns.expression.equivalent} to the following:
 \item
   Otherwise, \tcode{partial_ordering(partial_order(E, F))}
   if it is a well-formed expression
-  with overload resolution performed in a context
-  that does not include a declaration of \tcode{std::partial_order}.
+  where the meaning of \tcode{partial_order} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep}.
 \item
   Otherwise, \tcode{partial_ordering(compare_three_way()(E, F))}
   if it is a well-formed expression.
@@ -5044,7 +5046,9 @@ is expression-equivalent\iref{defns.expression.equivalent} to:
   Otherwise, \tcode{strong_order(E, F)} if it is a well-formed expression.
 \item
   Otherwise, if the expressions \tcode{E == F} and \tcode{E < F}
-  are both well-formed and convertible to \tcode{bool},
+  are both well-formed and
+  each of \tcode{decltype(E == F)} and \tcode{decltype(E < F)} models
+  \exposconcept{boolean-testable},
 \begin{codeblock}
 E == F ? strong_ordering::equal :
 E < F  ? strong_ordering::less :
@@ -5076,7 +5080,9 @@ is expression-equivalent\iref{defns.expression.equivalent} to:
   Otherwise, \tcode{weak_order(E, F)} if it is a well-formed expression.
 \item
   Otherwise, if the expressions \tcode{E == F} and \tcode{E < F}
-  are both well-formed and convertible to \tcode{bool},
+  are both well-formed and
+  each of \tcode{decltype(E == F)} and \tcode{decltype(E < F)} models
+  \exposconcept{boolean-testable},
 \begin{codeblock}
 E == F ? weak_ordering::equivalent :
 E < F  ? weak_ordering::less :
@@ -5109,7 +5115,9 @@ is expression-equivalent\iref{defns.expression.equivalent} to:
 \item
   Otherwise, if the expressions
   \tcode{E == F}, \tcode{E < F}, and \tcode{F < E}
-  are all well-formed and convertible to \tcode{bool},
+  are all well-formed and
+  each of \tcode{decltype(E == F)} and \tcode{decltype(E < F)} models
+  \exposconcept{boolean-testable},
 \begin{codeblock}
 E == F ? partial_ordering::equivalent :
 E < F  ? partial_ordering::less :
@@ -5782,6 +5790,11 @@ namespace std {
 \pnum
 The contents of the header \libheaderdef{cstdarg} are the same as the C
 standard library header \libheader{stdarg.h}, with the following changes:
+\begin{itemize}
+\item
+In lieu of the default argument promotions specified in ISO C 6.5.2.2,
+the definition in~\ref{expr.call} applies.
+\item
 The restrictions that ISO C places on the second parameter to the
 \indexlibraryglobal{va_start}%
 \tcode{va_start} macro in header \libheader{stdarg.h}
@@ -5807,6 +5820,7 @@ If the parameter
 is of a reference type, or of a type that is not compatible with the
 type that results when passing an argument for which there is no
 parameter, the behavior is undefined.
+\end{itemize}
 
 \xrefc{7.16.1.1}
 
@@ -6149,6 +6163,7 @@ the corresponding
 header is placed within
 the global namespace scope,
 except for the functions described in \ref{sf.cmath},
+the \tcode{std::lerp} function overloads\iref{c.math.lerp},
 the declaration of \tcode{std::byte}\iref{cstddef.syn}, and
 the functions and function templates described in \ref{support.types.byteops}.
 It is unspecified whether these names are first declared or defined within

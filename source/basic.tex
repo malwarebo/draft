@@ -48,7 +48,7 @@ A \defn{name} is an \grammarterm{identifier}\iref{lex.name},
 Every name is introduced by a \defn{declaration}, which is a
 \begin{itemize}
 \item
-\grammarterm{declaration},
+\grammarterm{name-declaration},
 \grammarterm{block-declaration}, or
 \grammarterm{member-declaration}\iref{dcl.pre,class.mem},
 \item
@@ -675,6 +675,11 @@ the same closure type (see below).
 \item In each such definition, corresponding entities shall have the
 same language linkage.
 
+\item In each such definition,
+const objects with static or thread storage duration
+shall be constant-initialized if
+the object is constant-initialized in any such definition.
+
 \item In each such definition, the overloaded operators referred
 to, the implicit calls to conversion functions, constructors, operator
 new functions and operator delete functions, shall refer to the same
@@ -882,6 +887,7 @@ are the same, or
 \item
 their object parameters have the same type.
 \end{itemize}
+\indextext{template!function!corresponding object parameter}%
 Two non-static member function templates have
 \defnadjx{corresponding}{object parameters}{object parameter} if:
 \begin{itemize}
@@ -894,6 +900,14 @@ are equivalent, or
 \item
 the types of their object parameters are equivalent.
 \end{itemize}
+\indextext{template!function!corresponding signature}%
+Two function templates have
+\defnadjx{corresponding}{signatures}{signature} if
+their \grammarterm{template-parameter-list}{s}
+have the same length,
+their corresponding \grammarterm{template-parameter}{s} are equivalent,
+they have equivalent non-object-parameter-type-lists and return types (if any), and,
+if both are non-static members, they have corresponding object parameters.
 
 \pnum
 Two declarations \defn{correspond}
@@ -925,13 +939,9 @@ equivalent\iref{temp.over.link} trailing \grammarterm{requires-clause}s
 if both are non-static members,
 they have corresponding object parameters, or
 \item
-both declare function templates with equivalent
-non-object-parameter-type-lists,
-return types (if any),
-\grammarterm{template-head}s, and
-trailing \grammarterm{requires-clause}s (if any), and,
-if both are non-static members,
-they have corresponding object parameters.
+both declare function templates with corresponding signatures and equivalent
+\grammarterm{template-head}s and
+trailing \grammarterm{requires-clause}s (if any).
 \end{itemize}
 \end{itemize}
 \begin{note}
@@ -939,7 +949,7 @@ Declarations can correspond even if neither binds a name.
 \begin{example}
 \begin{codeblock}
 struct A {
-friend void f();        // \#1
+  friend void f();      // \#1
 };
 struct B {
   friend void f() {}    // corresponds to, and defines, \#1
@@ -1743,10 +1753,6 @@ A \grammarterm{using-directive} is
 if it precedes $P$ and inhabits either $S$ or
 the scope of a namespace nominated by a \grammarterm{using-directive}
 that is active in $S$ at $P$.
-\begin{note}
-A \grammarterm{using-directive} is exported if and only if
-it appears in a header unit.
-\end{note}
 
 \pnum
 An \term{unqualified search} in a scope $S$ from a program point $P$
@@ -3426,8 +3432,7 @@ limited ways, as described below. The
 program has undefined behavior if:
 \begin{itemize}
 \item
-  the object will be or was of a class type with a non-trivial destructor
-  and the pointer is used as the operand of a \grammarterm{delete-expression},
+  the pointer is used as the operand of a \grammarterm{delete-expression},
 \item
   the pointer is used to access a non-static data member or call a
   non-static member function of the object, or
@@ -4312,7 +4317,7 @@ subexpression.
 \pnum
 \indextext{initializer!temporary and declarator}%
 \indextext{temporary!order of destruction of}%
-There are three contexts in which temporaries are destroyed at a different
+There are four contexts in which temporaries are destroyed at a different
 point than the end of the full-expression.
 The first context is when a default constructor is called to initialize
 an element of an array with no corresponding initializer\iref{dcl.init}.
@@ -4433,14 +4438,24 @@ S* p = new S{ 1, {2,3} };       // creates dangling reference
 \end{itemize}
 
 \pnum
-The destruction of a temporary whose lifetime is not extended by being
-bound to a reference is sequenced before the destruction of every
+The fourth context is when a temporary object other than a function parameter object
+is created in the \grammarterm{for-range-initializer} of a range-based \keyword{for} statement.
+If such a temporary object would otherwise be destroyed
+at the end of the \grammarterm{for-range-initializer} full-expression,
+the object persists for the lifetime of the reference
+initialized by the \grammarterm{for-range-initializer}.
+
+\pnum
+The destruction of a temporary whose lifetime is not extended
+beyond the full-expression in which it was created
+is sequenced before the destruction of every
 temporary which is constructed earlier in the same full-expression.
-If the lifetime of two or more temporaries to which references are bound ends
-at the same point,
+If the lifetime of two or more temporaries
+with lifetimes extending beyond the full-expressions in which they were created
+ends at the same point,
 these temporaries are destroyed at that point in the reverse order of the
 completion of their construction.
-In addition, the destruction of temporaries bound to references shall
+In addition, the destruction of such temporaries shall
 take into account the ordering of destruction of objects with static, thread, or
 automatic storage duration\iref{basic.stc.static,basic.stc.thread,basic.stc.auto};
 that is, if
@@ -4657,9 +4672,14 @@ those two points is the same type. The declared type of an array object
 can be an array of unknown bound and therefore be incomplete at one
 point in a translation unit and complete later on; the array types at
 those two points (``array of unknown bound of \tcode{T}'' and ``array of
-\tcode{N} \tcode{T}'') are different types. The type of a pointer to array of
-unknown bound, or of a type defined by a \keyword{typedef} declaration to
-be an array of unknown bound, cannot be completed.
+\tcode{N} \tcode{T}'') are different types.
+\begin{note}
+The type of a pointer or reference to array of unknown bound
+permanently points to or refers to an incomplete type.
+An array of unknown bound named by a \keyword{typedef} declaration
+permanently refers to an incomplete type.
+In either case, the array type cannot be completed.
+\end{note}
 \begin{example}
 \indextext{type!example of incomplete}%
 \begin{codeblock}
@@ -4742,15 +4762,20 @@ A type is a \defnadj{literal}{type} if it is:
 has all of the following properties:
 \begin{itemize}
 \item it has a constexpr destructor\iref{dcl.constexpr},
-\item it is either a closure type\iref{expr.prim.lambda.closure},
-an aggregate type\iref{dcl.init.aggr}, or
-has at least one constexpr constructor or constructor template
+\item all of its non-static non-variant data members and base classes are of non-volatile literal types, and
+\item it
+\begin{itemize}
+\item is a closure type\iref{expr.prim.lambda.closure},
+\item is an aggregate union type that has either
+no variant members or
+at least one variant member of non-volatile literal type,
+\item is a non-union aggregate type for which
+each of its anonymous union members
+satisfies the above requirements for an aggregate union type, or
+\item has at least one constexpr constructor or constructor template
 (possibly inherited\iref{namespace.udecl} from a base class)
-that is not a copy or move constructor,
-\item if it is a union, at least one of its non-static data members is
-of non-volatile literal type, and
-\item if it is not a union, all of its non-static data members and base classes are
-of non-volatile literal types.
+that is not a copy or move constructor.
+\end{itemize}
 \end{itemize}
 \end{itemize}
 \begin{note}
@@ -5571,6 +5596,10 @@ A \defn{constituent expression} is defined as follows:
 \item
 The constituent expression of an expression is that expression.
 \item
+The constituent expression of a conversion is
+the corresponding implicit function call, if any, or
+the converted expression otherwise.
+\item
 The constituent expressions of a \grammarterm{braced-init-list} or
 of a (possibly parenthesized) \grammarterm{expression-list}
 are the constituent expressions of the elements of the respective list.
@@ -5618,6 +5647,15 @@ a subexpression of an immediate subexpression of $E$.
 Expressions appearing in the \grammarterm{compound-statement} of a \grammarterm{lambda-expression}
 are not subexpressions of the \grammarterm{lambda-expression}.
 \end{note}
+The \defnadjx{potentially-evaluated}{subexpressions}{subexpression} of
+an expression, conversion, or \grammarterm{initializer} $E$ are
+\begin{itemize}
+\item
+the constituent expressions of $E$ and
+\item
+the subexpressions thereof that
+are not subexpressions of a nested unevaluated operand\iref{term.unevaluated.operand}.
+\end{itemize}
 
 \pnum
 A \defn{full-expression} is

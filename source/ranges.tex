@@ -55,7 +55,7 @@ namespace std::ranges {
     concept range = @\seebelow@;                                                      // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range = false;                            // freestanding
+    constexpr bool enable_borrowed_range = false;                                   // freestanding
 
   template<class T>
     concept borrowed_range = @\seebelow@;                                             // freestanding
@@ -66,6 +66,8 @@ namespace std::ranges {
     using sentinel_t = decltype(ranges::end(declval<R&>()));                        // freestanding
   template<@\libconcept{range}@ R>
     using const_iterator_t = const_iterator<iterator_t<R>>;                         // freestanding
+  template<@\libconcept{range}@ R>
+    using const_sentinel_t = const_sentinel<sentinel_t<R>>;                         // freestanding
   template<@\libconcept{range}@ R>
     using range_difference_t = iter_difference_t<iterator_t<R>>;                    // freestanding
   template<@\libconcept{sized_range}@ R>
@@ -81,14 +83,14 @@ namespace std::ranges {
 
   // \ref{range.sized}, sized ranges
   template<class>
-    inline constexpr bool disable_sized_range = false;                              // freestanding
+    constexpr bool disable_sized_range = false;                                     // freestanding
 
   template<class T>
     concept sized_range = @\seebelow@;                                                // freestanding
 
   // \ref{range.view}, views
   template<class T>
-    inline constexpr bool enable_view = @\seebelow@;                                  // freestanding
+    constexpr bool enable_view = @\seebelow@;                                         // freestanding
 
   struct view_base {};                                                              // freestanding
 
@@ -129,14 +131,14 @@ namespace std::ranges {
   class view_interface;                                                             // freestanding
 
   // \ref{range.subrange}, sub-ranges
-  enum class subrange_kind : bool { unsized, sized };                               // freestanding
+  enum class @\libglobal{subrange_kind}@ : bool { @\libmember{unsized}{subrange_kind}@, @\libmember{sized}{subrange_kind}@ };                               // freestanding
 
   template<@\libconcept{input_or_output_iterator}@ I, @\libconcept{sentinel_for}@<I> S = I, subrange_kind K = @\seebelow@>
     requires (K == subrange_kind::sized || !@\libconcept{sized_sentinel_for}@<S, I>)
   class subrange;                                                                   // freestanding
 
   template<class I, class S, subrange_kind K>
-    inline constexpr bool enable_borrowed_range<subrange<I, S, K>> = true;          // freestanding
+    constexpr bool enable_borrowed_range<subrange<I, S, K>> = true;                 // freestanding
 
   template<size_t N, class I, class S, subrange_kind K>
     requires ((N == 0 && @\libconcept{copyable}@<I>) || N == 1)
@@ -181,11 +183,11 @@ namespace std::ranges {
   class empty_view;                                                                 // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<empty_view<T>> = true;              // freestanding
+    constexpr bool enable_borrowed_range<empty_view<T>> = true;                     // freestanding
 
   namespace views {
     template<class T>
-      inline constexpr empty_view<T> @\libmember{empty}{views}@{};                                       // freestanding
+      constexpr empty_view<T> @\libmember{empty}{views}@{};                                              // freestanding
   }
 
   // \ref{range.single}, single view
@@ -204,17 +206,17 @@ namespace std::ranges {
   class iota_view;                                                                  // freestanding
 
   template<class W, class Bound>
-    inline constexpr bool enable_borrowed_range<iota_view<W, Bound>> = true;        // freestanding
+    constexpr bool enable_borrowed_range<iota_view<W, Bound>> = true;               // freestanding
 
   namespace views { inline constexpr @\unspecnc@ iota = @\unspecnc@; }              // freestanding
 
   // \ref{range.repeat}, repeat view
-  template<@\libconcept{move_constructible}@ W, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
-    requires (is_object_v<W> && @\libconcept{same_as}@<W, remove_cv_t<W>>
+  template<@\libconcept{move_constructible}@ T, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
+    requires (is_object_v<T> && @\libconcept{same_as}@<T, remove_cv_t<T>>
       && (@\exposid{is-integer-like}@<Bound> || @\libconcept{same_as}@<Bound, unreachable_sentinel_t>))
-  class repeat_view;
+  class repeat_view;                                                                // freestanding
 
-  namespace views { inline constexpr @\unspec@ repeat = @\unspec@; }
+  namespace views { inline constexpr @\unspecnc@ repeat = @\unspecnc@; }            // freestanding
 
   // \ref{range.istream}, istream view
   template<@\libconcept{movable}@ Val, class CharT, class Traits = char_traits<CharT>>
@@ -225,7 +227,7 @@ namespace std::ranges {
   template<class Val>
     using wistream_view = basic_istream_view<Val, wchar_t>;
 
-  namespace views { template<class T> inline constexpr @\unspecnc@ istream = @\unspecnc@; }
+  namespace views { template<class T> constexpr @\unspecnc@ istream = @\unspecnc@; }
 
   // \ref{range.adaptor.object}, range adaptor objects
   template<class D>
@@ -246,7 +248,7 @@ namespace std::ranges {
   class ref_view;                                                                   // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<ref_view<T>> = true;                // freestanding
+    constexpr bool enable_borrowed_range<ref_view<T>> = true;                       // freestanding
 
   // \ref{range.owning.view}, owning view
   template<@\libconcept{range}@ R>
@@ -254,7 +256,7 @@ namespace std::ranges {
   class owning_view;                                                                // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<owning_view<T>> =                   // freestanding
+    constexpr bool enable_borrowed_range<owning_view<T>> =                          // freestanding
       enable_borrowed_range<T>;
 
   // \ref{range.as.rvalue}, as rvalue view
@@ -263,7 +265,7 @@ namespace std::ranges {
   class as_rvalue_view;                                                             // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<as_rvalue_view<T>> =                // freestanding
+    constexpr bool enable_borrowed_range<as_rvalue_view<T>> =                       // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ as_rvalue = @\unspecnc@; }         // freestanding
@@ -288,7 +290,7 @@ namespace std::ranges {
   template<@\libconcept{view}@> class take_view;                                                   // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<take_view<T>> =                     // freestanding
+    constexpr bool enable_borrowed_range<take_view<T>> =                            // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ take = @\unspecnc@; }              // freestanding
@@ -306,7 +308,7 @@ namespace std::ranges {
     class drop_view;                                                                // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<drop_view<T>> =                     // freestanding
+    constexpr bool enable_borrowed_range<drop_view<T>> =                            // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ drop = @\unspecnc@; }              // freestanding
@@ -318,7 +320,7 @@ namespace std::ranges {
     class drop_while_view;                                                          // freestanding
 
   template<class T, class Pred>
-    inline constexpr bool enable_borrowed_range<drop_while_view<T, Pred>> =         // freestanding
+    constexpr bool enable_borrowed_range<drop_while_view<T, Pred>> =                // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ drop_while = @\unspecnc@; }        // freestanding
@@ -372,7 +374,7 @@ namespace std::ranges {
   class common_view;                                                                // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<common_view<T>> =                   // freestanding
+    constexpr bool enable_borrowed_range<common_view<T>> =                          // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ common = @\unspecnc@; }            // freestanding
@@ -383,7 +385,7 @@ namespace std::ranges {
   class reverse_view;                                                               // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<reverse_view<T>> =                  // freestanding
+    constexpr bool enable_borrowed_range<reverse_view<T>> =                         // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ reverse = @\unspecnc@; }           // freestanding
@@ -403,7 +405,7 @@ namespace std::ranges {
   class as_const_view;                                                              // freestanding
 
   template<class T>
-    inline constexpr bool enable_borrowed_range<as_const_view<T>> =                 // freestanding
+    constexpr bool enable_borrowed_range<as_const_view<T>> =                        // freestanding
       enable_borrowed_range<T>;
 
   namespace views { inline constexpr @\unspecnc@ as_const = @\unspecnc@; }          // freestanding
@@ -414,7 +416,7 @@ namespace std::ranges {
   class elements_view;                                                              // freestanding
 
   template<class T, size_t N>
-    inline constexpr bool enable_borrowed_range<elements_view<T, N>> =              // freestanding
+    constexpr bool enable_borrowed_range<elements_view<T, N>> =                     // freestanding
       enable_borrowed_range<T>;
 
   template<class R>
@@ -424,7 +426,7 @@ namespace std::ranges {
 
   namespace views {
     template<size_t N>
-      inline constexpr @\unspecnc@ elements = @\unspecnc@;                          // freestanding
+      constexpr @\unspecnc@ elements = @\unspecnc@;                                 // freestanding
     inline constexpr auto @\libmember{keys}{views}@ = elements<0>;                                       // freestanding
     inline constexpr auto @\libmember{values}{views}@ = elements<1>;                                     // freestanding
   }
@@ -435,7 +437,7 @@ namespace std::ranges {
   class zip_view;                                                                   // freestanding
 
   template<class... Views>
-    inline constexpr bool enable_borrowed_range<zip_view<Views...>> =               // freestanding
+    constexpr bool enable_borrowed_range<zip_view<Views...>> =                      // freestanding
       (enable_borrowed_range<Views> && ...);
 
   namespace views { inline constexpr @\unspecnc@ zip = @\unspecnc@; }               // freestanding
@@ -455,7 +457,7 @@ namespace std::ranges {
   class adjacent_view;                                                              // freestanding
 
   template<class V, size_t N>
-    inline constexpr bool enable_borrowed_range<adjacent_view<V, N>> =              // freestanding
+    constexpr bool enable_borrowed_range<adjacent_view<V, N>> =                     // freestanding
       enable_borrowed_range<V>;
 
   namespace views {
@@ -485,7 +487,7 @@ namespace std::ranges {
   class chunk_view<V>;                                                              // freestanding
 
   template<class V>
-    inline constexpr bool enable_borrowed_range<chunk_view<V>> =                    // freestanding
+    constexpr bool enable_borrowed_range<chunk_view<V>> =                           // freestanding
       @\libconcept{forward_range}@<V> && enable_borrowed_range<V>;
 
   namespace views { inline constexpr @\unspecnc@ chunk = @\unspecnc@; }             // freestanding
@@ -496,7 +498,7 @@ namespace std::ranges {
   class slide_view;                                                                 // freestanding
 
   template<class V>
-    inline constexpr bool enable_borrowed_range<slide_view<V>> =
+    constexpr bool enable_borrowed_range<slide_view<V>> =
       enable_borrowed_range<V>;                                                     // freestanding
 
   namespace views { inline constexpr @\unspecnc@ slide = @\unspecnc@; }             // freestanding
@@ -511,19 +513,20 @@ namespace std::ranges {
   // \ref{range.stride}, stride view
   template<@\libconcept{input_range}@ V>
     requires @\libconcept{view}@<V>
-  class stride_view;
+  class stride_view;                                                                // freestanding
 
   template<class V>
-    inline constexpr bool enable_borrowed_range<stride_view<V>> = enable_borrowed_range<V>;
+    constexpr bool enable_borrowed_range<stride_view<V>> =                          // freestanding
+      enable_borrowed_range<V>;
 
-  namespace views { inline constexpr @\unspecnc@ stride = @\unspecnc@; }
+  namespace views { inline constexpr @\unspecnc@ stride = @\unspecnc@; }            // freestanding
 
   // \ref{range.cartesian}, cartesian product view
   template<@\libconcept{input_range}@ First, @\libconcept{forward_range}@... Vs>
     requires (@\libconcept{view}@<First> && ... && @\libconcept{view}@<Vs>)
-  class cartesian_product_view;
+  class cartesian_product_view;                                                     // freestanding
 
-  namespace views { inline constexpr @\unspecnc@ cartesian_product = @\unspecnc@; }
+  namespace views { inline constexpr @\unspecnc@ cartesian_product = @\unspecnc@; } // freestanding
 }
 
 namespace std {
@@ -637,15 +640,10 @@ Then:
   \tcode{auto(begin(t))}
   is a valid expression whose type models
   \libconcept{input_or_output_iterator}
-  with overload resolution performed in a context in which
-  unqualified lookup for \tcode{begin} finds only the declarations
-\begin{codeblock}
-void begin(auto&) = delete;
-void begin(const auto&) = delete;
-\end{codeblock}
+  where the meaning of \tcode{begin} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep},
   then \tcode{ranges::begin(E)} is expression-equivalent to
-  \tcode{auto(begin(t))}
-  with overload resolution performed in the above context.
+  that expression.
 
 \item
   Otherwise, \tcode{ranges::begin(E)} is ill-formed.
@@ -708,15 +706,10 @@ Then:
   \tcode{auto(end(t))}
   is a valid expression whose type models
   \tcode{\libconcept{sentinel_for}<iterator_t<T>>}
-  with overload resolution performed in a context in which
-  unqualified lookup for \tcode{end} finds only the declarations
-\begin{codeblock}
-void end(auto&) = delete;
-void end(const auto&) = delete;
-\end{codeblock}
+  where the meaning of \tcode{end} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep},
   then \tcode{ranges::end(E)} is expression-equivalent to
-  \tcode{auto(end(t))}
-  with overload resolution performed in the above context.
+  that expression.
 
 \item
   Otherwise, \tcode{ranges::end(E)} is ill-formed.
@@ -830,15 +823,10 @@ Then:
   \tcode{auto(rbegin(t))}
   is a valid expression whose type models
   \libconcept{input_or_output_iterator}
-  with overload resolution performed in a context in which
-  unqualified lookup for \tcode{rbegin} finds only the declarations
-\begin{codeblock}
-void rbegin(auto&) = delete;
-void rbegin(const auto&) = delete;
-\end{codeblock}
+  where the meaning of \tcode{rbegin} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep},
   then \tcode{ranges::rbegin(E)} is expression-equivalent to
-  \tcode{auto(rbegin(t))}
-  with overload resolution performed in the above context.
+  that expression.
 
 \item
   Otherwise, if both \tcode{ranges::begin(t)} and \tcode{ranges::end(t)}
@@ -899,15 +887,10 @@ Then:
   \tcode{auto(rend(t))}
   is a valid expression whose type models
   \tcode{\libconcept{sentinel_for}<decltype(ranges::rbegin(E))>}
-  with overload resolution performed in a context in which
-  unqualified lookup for \tcode{rend} finds only the declarations
-\begin{codeblock}
-void rend(auto&) = delete;
-void rend(const auto&) = delete;
-\end{codeblock}
+  where the meaning of \tcode{rend} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep},
   then \tcode{ranges::rend(E)} is expression-equivalent to
-  \tcode{auto(rend(t))}
-  with overload resolution performed in the above context.
+  that expression.
 
 \item
   Otherwise, if both \tcode{ranges::begin(t)} and \tcode{ranges::end(t)}
@@ -1029,15 +1012,10 @@ Then:
   \tcode{disable_sized_range<remove_cv_t<T>>} is \tcode{false} and
   \tcode{auto(size(t))}
   is a valid expression of integer-like type
-  with overload resolution performed in a context in which
-  unqualified lookup for \tcode{size} finds only the declarations
-\begin{codeblock}
-void size(auto&) = delete;
-void size(const auto&) = delete;
-\end{codeblock}
+  where the meaning of \tcode{size} is established as-if by performing
+  argument-dependent lookup only\iref{basic.lookup.argdep},
   then \tcode{ranges::size(E)} is expression-equivalent to
-  \tcode{auto(size(t))}
-  with overload resolution performed in the above context.
+  that expression.
 
 \item
   Otherwise, if
@@ -1303,7 +1281,7 @@ are amortized constant time and non-modifying, and
 \pnum
 \begin{note}
 Equality preservation of both \tcode{ranges::begin} and
-\tcode{ranges::end} enables passing a \libconcept{range} whose iterator
+\tcode{ranges::end} enables passing a range whose iterator
 type models \libconcept{forward_iterator} to multiple
 algorithms and making multiple passes over the range by repeated calls to
 \tcode{ranges::begin} and \tcode{ranges::end}.
@@ -1341,7 +1319,7 @@ return iterators obtained from it without danger of dangling.
 \indexlibraryglobal{enable_borrowed_range}%
 \begin{itemdecl}
 template<class>
-  inline constexpr bool enable_borrowed_range = false;
+  constexpr bool enable_borrowed_range = false;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -1408,7 +1386,7 @@ only if evaluated before the first call to \tcode{ranges::begin(t)}.
 \indexlibraryglobal{disable_sized_range}%
 \begin{itemdecl}
 template<class>
-  inline constexpr bool disable_sized_range = false;
+  constexpr bool disable_sized_range = false;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -1476,7 +1454,7 @@ a moved-from object of type \tcode{T} has \bigoh{1} destruction.
 
 \pnum
 \begin{example}
-Examples of \libconcept{view}s are:
+Examples of views are:
 \begin{itemize}
 \item A \libconcept{range} type that wraps a pair of iterators.
 
@@ -1500,9 +1478,9 @@ semantic, the two are differentiated with the help of \tcode{enable_view}.
 \indexlibraryglobal{enable_view}%
 \begin{itemdecl}
 template<class T>
-  inline constexpr bool @\exposidnc{is-derived-from-view-interface}@ = @\seebelownc@;     // \expos
+  constexpr bool @\exposidnc{is-derived-from-view-interface}@ = @\seebelownc@;            // \expos
 template<class T>
-  inline constexpr bool enable_view =
+  constexpr bool enable_view =
     @\libconcept{derived_from}@<T, view_base> || @\exposid{is-derived-from-view-interface}@<T>;
 \end{itemdecl}
 
@@ -1606,7 +1584,7 @@ For a type \tcode{R},
 
 \pnum
 The \libconcept{viewable_range} concept specifies the requirements of a
-\libconcept{range} type that can be converted to a \libconcept{view} safely.
+\libconcept{range} type that can be converted to a view safely.
 
 \begin{itemdecl}
 template<class T>
@@ -1663,7 +1641,7 @@ template<class T, class U>
 
 \pnum
 The class template \tcode{view_interface} is a helper for defining
-\libconcept{view}-like types that offer a container-like interface. It is
+view-like types that offer a container-like interface. It is
 parameterized with the type that is derived from it.
 
 \indexlibraryglobal{view_interface}%
@@ -1694,16 +1672,16 @@ namespace std::ranges {
         return ranges::begin(@\exposid{derived}@()) == ranges::end(@\exposid{derived}@());
     }
 
-    constexpr auto cbegin() {
+    constexpr auto cbegin() requires @\libconcept{input_range}@<D> {
       return ranges::cbegin(@\exposid{derived}@());
     }
-    constexpr auto cbegin() const requires @\libconcept{range}@<const D> {
+    constexpr auto cbegin() const requires @\libconcept{input_range}@<const D> {
       return ranges::cbegin(@\exposid{derived}@());
     }
-    constexpr auto cend() {
+    constexpr auto cend() requires @\libconcept{input_range}@<D> {
       return ranges::cend(@\exposid{derived}@());
     }
-    constexpr auto cend() const requires @\libconcept{range}@<const D> {
+    constexpr auto cend() const requires @\libconcept{input_range}@<const D> {
       return ranges::cend(@\exposid{derived}@());
     }
 
@@ -1726,11 +1704,11 @@ namespace std::ranges {
 
     constexpr auto size() requires @\libconcept{forward_range}@<D> &&
       @\libconcept{sized_sentinel_for}@<sentinel_t<D>, iterator_t<D>> {
-        return ranges::end(@\exposid{derived}@()) - ranges::begin(@\exposid{derived}@());
+        return @\exposid{to-unsigned-like}@(ranges::end(@\exposid{derived}@()) - ranges::begin(@\exposid{derived}@()));
       }
     constexpr auto size() const requires @\libconcept{forward_range}@<const D> &&
       @\libconcept{sized_sentinel_for}@<sentinel_t<const D>, iterator_t<const D>> {
-        return ranges::end(@\exposid{derived}@()) - ranges::begin(@\exposid{derived}@());
+        return @\exposid{to-unsigned-like}@(ranges::end(@\exposid{derived}@()) - ranges::begin(@\exposid{derived}@()));
       }
 
     constexpr decltype(auto) front() requires @\libconcept{forward_range}@<D>;
@@ -2138,7 +2116,7 @@ else
 \rSec2[range.dangling]{Dangling iterator handling}
 
 \pnum
-The tag type \tcode{dangling} is used together with the template aliases
+The type \tcode{dangling} is used together with the template aliases
 \tcode{borrowed_iterator_t} and \tcode{borrowed_subrange_t}.
 When an algorithm
 that typically returns an iterator into, or a subrange of, a range argument
@@ -2146,7 +2124,7 @@ is called with an rvalue range argument
 that does not model \libconcept{borrowed_range}\iref{range.range},
 the return value possibly refers to a range whose lifetime has ended.
 In such cases,
-the tag type \tcode{dangling} is returned instead of an iterator or subrange.
+the type \tcode{dangling} is returned instead of an iterator or subrange.
 \indexlibraryglobal{dangling}%
 \begin{codeblock}
 namespace std::ranges {
@@ -2298,7 +2276,8 @@ An object of type \tcode{C}
 constructed from the elements of \tcode{r} in the following manner:
 \begin{itemize}
 \item
-If \tcode{\libconcept{convertible_to}<range_reference_t<R>, range_value_t<C>>}
+If \tcode{C} does not satisfy \libconcept{input_range} or
+\tcode{\libconcept{convertible_to}<range_reference_t<R>, range_value_t<C>>}
 is \tcode{true}:
 \begin{itemize}
 \item
@@ -2338,7 +2317,7 @@ Otherwise, if
 \begin{codeblock}
 C c(std::forward<Args>(args)...);
 if constexpr (@\libconcept{sized_range}@<R> && @\exposid{reservable-container}@<C>)
-  c.reserve(ranges::size(r));
+  c.reserve(static_cast<range_size_t<C>>(ranges::size(r)));
 ranges::copy(r, @\exposid{container-inserter}@<range_reference_t<R>>(c));
 \end{codeblock}
 \end{itemize}
@@ -2444,7 +2423,7 @@ where \tcode{r} is the argument used in a function call expression of \tcode{f}.
 
 \pnum
 Subclause \ref{range.factories} defines \term{range factories},
-which are utilities to create a \libconcept{view}.
+which are utilities to create a view.
 
 \pnum
 Range factories are declared in namespace \tcode{std::ranges::views}.
@@ -2454,7 +2433,7 @@ Range factories are declared in namespace \tcode{std::ranges::views}.
 \rSec3[range.empty.overview]{Overview}
 
 \pnum
-\tcode{empty_view} produces a \libconcept{view} of no elements of
+\tcode{empty_view} produces a view of no elements of
 a particular type.
 
 \pnum
@@ -2489,7 +2468,7 @@ namespace std::ranges {
 \rSec3[range.single.overview]{Overview}
 
 \pnum
-\tcode{single_view} produces a \libconcept{view} that contains
+\tcode{single_view} produces a view that contains
 exactly one element of a specified value.
 
 \pnum
@@ -2543,7 +2522,7 @@ namespace std::ranges {
 
 \indexlibraryctor{single_view}%
 \begin{itemdecl}
-constexpr explicit single_view(const T& t) requires @\libconcept{copy_constructible}@<T>;;
+constexpr explicit single_view(const T& t) requires @\libconcept{copy_constructible}@<T>;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -2800,6 +2779,8 @@ constexpr explicit iota_view(W value);
 \expects
 \tcode{Bound} denotes \tcode{unreachable_sentinel_t} or
 \tcode{Bound()} is reachable from \tcode{value}.
+When \tcode{W} and \tcode{Bound} model \libconcept{totally_ordered_with},
+then \tcode{bool(value <= Bound())} is \tcode{true}.
 
 \pnum
 \effects
@@ -2936,6 +2917,7 @@ namespace std::ranges {
   struct iota_view<W, Bound>::@\exposid{iterator}@ {
   private:
     W @\exposid{value_}@ = W();             // \expos
+
   public:
     using iterator_concept = @\seebelow@;
     using iterator_category = input_iterator_tag;       // present only if \tcode{W} models \libconcept{incrementable} and
@@ -3315,6 +3297,7 @@ namespace std::ranges {
   struct iota_view<W, Bound>::@\exposid{sentinel}@ {
   private:
     Bound @\exposid{bound_}@ = Bound();     // \expos
+
   public:
     @\exposid{sentinel}@() = default;
     constexpr explicit @\exposid{sentinel}@(Bound bound);
@@ -3403,28 +3386,28 @@ for (int i : views::repeat(17, 4))
 
 \begin{codeblock}
 namespace std::ranges {
-  template<@\libconcept{move_constructible}@ W, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
-    requires (is_object_v<W> && @\libconcept{same_as}@<W, remove_cv_t<W>> &&
+  template<@\libconcept{move_constructible}@ T, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
+    requires (is_object_v<T> && @\libconcept{same_as}@<T, remove_cv_t<T>> &&
               (@\exposid{is-integer-like}@<Bound> || @\libconcept{same_as}@<Bound, unreachable_sentinel_t>))
-  class @\libglobal{repeat_view}@ : public view_interface<repeat_view<W, Bound>> {
+  class @\libglobal{repeat_view}@ : public view_interface<repeat_view<T, Bound>> {
   private:
     // \ref{range.repeat.iterator}, class \tcode{repeat_view::\exposid{iterator}}
     struct @\exposidnc{iterator}@;                            // \expos
 
-    @\exposidnc{movable-box}@<W> @\exposid{value_}@ = W();                // \expos, see \ref{range.move.wrap}
+    @\exposidnc{movable-box}@<T> @\exposid{value_}@;                      // \expos, see \ref{range.move.wrap}
     Bound @\exposid{bound_}@ = Bound();                     // \expos
 
   public:
-    repeat_view() requires @\libconcept{default_initializable}@<W> = default;
+    repeat_view() requires @\libconcept{default_initializable}@<T> = default;
 
-    constexpr explicit repeat_view(const W& value, Bound bound = Bound())
-      requires @\libconcept{copy_constructible}@<W>;
-    constexpr explicit repeat_view(W&& value, Bound bound = Bound());
-    template<class... WArgs, class... BoundArgs>
-      requires @\libconcept{constructible_from}@<W, WArgs...> &&
+    constexpr explicit repeat_view(const T& value, Bound bound = Bound())
+      requires @\libconcept{copy_constructible}@<T>;
+    constexpr explicit repeat_view(T&& value, Bound bound = Bound());
+    template<class... TArgs, class... BoundArgs>
+      requires @\libconcept{constructible_from}@<T, TArgs...> &&
                @\libconcept{constructible_from}@<Bound, BoundArgs...>
     constexpr explicit repeat_view(piecewise_construct_t,
-      tuple<WArgs...> value_args, tuple<BoundArgs...> bound_args = tuple<>{});
+      tuple<TArgs...> value_args, tuple<BoundArgs...> bound_args = tuple<>{});
 
     constexpr @\exposid{iterator}@ begin() const;
     constexpr @\exposid{iterator}@ end() const requires (!@\libconcept{same_as}@<Bound, unreachable_sentinel_t>);
@@ -3433,15 +3416,15 @@ namespace std::ranges {
     constexpr auto size() const requires (!@\libconcept{same_as}@<Bound, unreachable_sentinel_t>);
   };
 
-  template<class W, class Bound>
-    repeat_view(W, Bound) -> repeat_view<W, Bound>;
+  template<class T, class Bound>
+    repeat_view(T, Bound) -> repeat_view<T, Bound>;
 }
 \end{codeblock}
 
 \indexlibraryctor{repeat_view}%
 \begin{itemdecl}
-constexpr explicit repeat_view(const W& value, Bound bound = Bound())
-  requires @\libconcept{copy_constructible}@<W>;
+constexpr explicit repeat_view(const T& value, Bound bound = Bound())
+  requires @\libconcept{copy_constructible}@<T>;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -3458,7 +3441,7 @@ Initializes \exposid{value_} with \tcode{value} and
 
 \indexlibraryctor{repeat_view}%
 \begin{itemdecl}
-constexpr explicit repeat_view(W&& value, Bound bound = Bound());
+constexpr explicit repeat_view(T&& value, Bound bound = Bound());
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -3474,17 +3457,17 @@ Initializes \exposid{value_} with \tcode{std::move(value)} and
 
 \indexlibraryctor{repeat_view}%
 \begin{itemdecl}
-template<class... WArgs, class... BoundArgs>
-  requires @\libconcept{constructible_from}@<W, WArgs...> &&
+template<class... TArgs, class... BoundArgs>
+  requires @\libconcept{constructible_from}@<T, TArgs...> &&
            @\libconcept{constructible_from}@<Bound, BoundArgs...>
 constexpr explicit repeat_view(piecewise_construct_t,
-  tuple<Wargs...> value_args, tuple<BoundArgs...> bound_args = tuple<>{});
+  tuple<TArgs...> value_args, tuple<BoundArgs...> bound_args = tuple<>{});
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Initializes \exposid{value_} with arguments of types \tcode{WArgs...}
+Initializes \exposid{value_} with arguments of types \tcode{TArgs...}
 obtained by forwarding the elements of \tcode{value_args} and
 initializes \exposid{bound_} with arguments of types \tcode{BoundArgs...}
 obtained by forwarding the elements of \tcode{bound_args}.
@@ -3540,29 +3523,29 @@ Equivalent to: \tcode{return \exposid{to-unsigned-like}(\exposid{bound_});}
 
 \begin{codeblock}
 namespace std::ranges {
-  template<@\libconcept{move_constructible}@ W, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
-    requires (is_object_v<W> && @\libconcept{same_as}@<W, remove_cv_t<W>> &&
+  template<@\libconcept{move_constructible}@ T, @\libconcept{semiregular}@ Bound = unreachable_sentinel_t>
+    requires (is_object_v<T> && @\libconcept{same_as}@<T, remove_cv_t<T>> &&
               (@\exposid{is-integer-like}@<Bound> || @\libconcept{same_as}@<Bound, unreachable_sentinel_t>))
-  class repeat_view<W, Bound>::@\exposid{iterator}@ {
+  class repeat_view<T, Bound>::@\exposid{iterator}@ {
   private:
     using @\exposidnc{index-type}@ =                          // \expos
       conditional_t<@\libconcept{same_as}@<Bound, unreachable_sentinel_t>, ptrdiff_t, Bound>;
-    const W* @\exposidnc{value_}@ = nullptr;                  // \expos
+    const T* @\exposidnc{value_}@ = nullptr;                  // \expos
     @\exposidnc{index-type}@ @\exposidnc{current_}@ = @\exposidnc{index-type}@();         // \expos
 
-    constexpr explicit @\exposid{iterator}@(const W* value, @\exposid{index-type}@ b = @\exposidnc{index-type}@());   // \expos
+    constexpr explicit @\exposid{iterator}@(const T* value, @\exposid{index-type}@ b = @\exposidnc{index-type}@());   // \expos
 
   public:
     using iterator_concept = random_access_iterator_tag;
     using iterator_category = random_access_iterator_tag;
-    using value_type = W;
+    using value_type = T;
     using difference_type = conditional_t<@\exposid{is-signed-integer-like}@<@\exposid{index-type}@>,
         @\exposid{index-type}@,
         @\placeholdernc{IOTA-DIFF-T}@(@\exposid{index-type}@)>;
 
     @\exposid{iterator}@() = default;
 
-    constexpr const W& operator*() const noexcept;
+    constexpr const T& operator*() const noexcept;
 
     constexpr @\exposid{iterator}@& operator++();
     constexpr @\exposid{iterator}@ operator++(int);
@@ -3572,7 +3555,7 @@ namespace std::ranges {
 
     constexpr @\exposid{iterator}@& operator+=(difference_type n);
     constexpr @\exposid{iterator}@& operator-=(difference_type n);
-    constexpr const W& operator[](difference_type n) const noexcept;
+    constexpr const T& operator[](difference_type n) const noexcept;
 
     friend constexpr bool operator==(const @\exposid{iterator}@& x, const @\exposid{iterator}@& y);
     friend constexpr auto operator<=>(const @\exposid{iterator}@& x, const @\exposid{iterator}@& y);
@@ -3588,7 +3571,7 @@ namespace std::ranges {
 
 \indexlibraryctor{repeat_view::\exposid{iterator}}%
 \begin{itemdecl}
-constexpr explicit @\exposid{iterator}@(const W* value, @\exposid{index-type}@ b = @\exposid{index-type}@());
+constexpr explicit @\exposid{iterator}@(const T* value, @\exposid{index-type}@ b = @\exposid{index-type}@());
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -3604,7 +3587,7 @@ Initializes \exposid{value_} with \tcode{value} and
 
 \indexlibrarymember{operator*}{repeat_view::\exposid{iterator}}%
 \begin{itemdecl}
-constexpr const W& operator*() const noexcept;
+constexpr const T& operator*() const noexcept;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -3722,7 +3705,7 @@ return *this;
 
 \indexlibrarymember{operator[]}{repeat_view::\exposid{iterator}}%
 \begin{itemdecl}
-constexpr const W& operator[](difference_type n) const noexcept;
+constexpr const T& operator[](difference_type n) const noexcept;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -3983,7 +3966,7 @@ Equivalent to: \tcode{return !*x.\exposid{parent_}->\exposid{stream_};}
 
 \pnum
 Subclause \ref{range.adaptors} defines \term{range adaptors}, which are utilities that transform a
-\libconcept{range} into a \libconcept{view} with custom behaviors. These
+range into a view with custom behaviors. These
 adaptors can be chained to create pipelines of range transformations that
 evaluate lazily as the resulting view is iterated.
 
@@ -4012,7 +3995,7 @@ assert(ranges::equal(ints | views::filter(even), views::filter(ints, even)));
 
 \pnum
 A \term{range adaptor closure object} is a unary function object that accepts
-a \libconcept{range} argument. For
+a range argument. For
 a range adaptor closure object \tcode{C} and an expression \tcode{R} such that
 \tcode{decltype((R))} models \libconcept{range}, the following
 expressions are equivalent:
@@ -4045,7 +4028,7 @@ the initializations of the state entities of \tcode{E} are all well-formed.
 Given an object \tcode{t} of type \tcode{T}, where
 \begin{itemize}
 \item
-\tcode{t} is a unary function object that accepts a \libconcept{range} argument,
+\tcode{t} is a unary function object that accepts a range argument,
 \item
 \tcode{T} models \tcode{\libconcept{derived_from}<range_adaptor_closure<T>>},
 \item
@@ -4080,8 +4063,7 @@ that adds a specialization for \tcode{range_adaptor_closure} is undefined.
 \pnum
 A \term{range adaptor object} is a
 customization point object\iref{customization.point.object}
-that accepts a \libconcept{viewable_range} as its first argument and returns a
-\libconcept{view}.
+that accepts a \libconcept{viewable_range} as its first argument and returns a view.
 
 \pnum
 If a range adaptor object accepts only one argument,
@@ -4274,7 +4256,7 @@ namespace std::ranges {
   template<class F, class Tuple>
   constexpr void @\exposid{tuple-for-each}@(F&& f, Tuple&& t) { // \expos
     apply([&]<class... Ts>(Ts&&... elements) {
-      (invoke(f, std::forward<Ts>(elements)), ...);
+      (static_cast<void>(invoke(f, std::forward<Ts>(elements))), ...);
     }, std::forward<Tuple>(t));
   }
 }
@@ -4286,8 +4268,8 @@ namespace std::ranges {
 
 \pnum
 \indexlibrarymember{all}{views}%
-\tcode{views::all} returns a \libconcept{view} that includes all elements of
-its \libconcept{range} argument.
+\tcode{views::all} returns a view that includes all elements of
+its range argument.
 
 \pnum
 The name \tcode{views::all} denotes a
@@ -4306,7 +4288,7 @@ models \libconcept{view}.
 \rSec3[range.ref.view]{Class template \tcode{ref_view}}
 
 \pnum
-\tcode{ref_view} is a \libconcept{view} of the elements of some other \libconcept{range}.
+\tcode{ref_view} is a view of the elements of some other range.
 \indexlibraryglobal{ref_view}%
 \begin{codeblock}
 namespace std::ranges {
@@ -4315,6 +4297,7 @@ namespace std::ranges {
   class ref_view : public view_interface<ref_view<R>> {
   private:
     R* @\exposid{r_}@;                      // \expos
+
   public:
     template<@\exposconcept{different-from}@<ref_view> T>
       requires @\seebelow@
@@ -4371,7 +4354,7 @@ The expression in the \grammarterm{requires-clause} is equivalent to:
 
 \pnum
 \tcode{owning_view} is a move-only view
-of the elements of some other \libconcept{range}.
+of the elements of some other range.
 \begin{codeblock}
 namespace std::ranges {
   template<@\libconcept{range}@ R>
@@ -4379,6 +4362,7 @@ namespace std::ranges {
   class owning_view : public view_interface<owning_view<R>> {
   private:
     R @\exposid{r_}@ = R();         // \expos
+
   public:
     owning_view() requires @\libconcept{default_initializable}@<R> = default;
     constexpr owning_view(R&& t);
@@ -4432,7 +4416,7 @@ Initializes \exposid{r_} with \tcode{std::move(t)}.
 \rSec3[range.as.rvalue.overview]{Overview}
 
 \pnum
-\tcode{as_rvalue_view} presents a \libconcept{view} of an underlying sequence
+\tcode{as_rvalue_view} presents a view of an underlying sequence
 with the same behavior as the underlying sequence
 except that its elements are rvalues.
 Some generic algorithms can be called with a \tcode{as_rvalue_view}
@@ -4522,7 +4506,7 @@ Initializes \exposid{base_} with \tcode{std::move(base)}.
 \rSec3[range.filter.overview]{Overview}
 
 \pnum
-\tcode{filter_view} presents a \libconcept{view} of the elements
+\tcode{filter_view} presents a view of the elements
 of an underlying sequence that satisfy a predicate.
 
 \pnum
@@ -4947,7 +4931,7 @@ Equivalent to: \tcode{return x.\exposid{current_} == y.\exposid{end_};}
 
 \pnum
 \tcode{transform_view} presents
-a \libconcept{view} of an underlying sequence after
+a view of an underlying sequence after
 applying a transformation function to each element.
 
 \pnum
@@ -5227,7 +5211,7 @@ Let \tcode{C} denote the type
 \tcode{iterator_traits<iterator_t<\exposid{Base}>>::iterator_category}.
 \begin{itemize}
 \item
-If \tcode{is_lvalue_reference_v<invoke_result_t<\exposidnc{maybe-const}<Const, F>\&, range_reference_t<\linebreak\exposid{Base}>>>}
+If \tcode{is_reference_v<invoke_result_t<\exposidnc{maybe-const}<Const, F>\&, range_reference_t<\exposid{Base}>>>}
 is \tcode{true}, then
 \begin{itemize}
 \item
@@ -5520,6 +5504,7 @@ namespace std::ranges {
     using @\exposid{Parent}@ = @\exposid{maybe-const}@<Const, transform_view>;  // \expos
     using @\exposid{Base}@ = @\exposid{maybe-const}@<Const, V>;                 // \expos
     sentinel_t<@\exposid{Base}@> @\exposid{end_}@ = sentinel_t<@\exposid{Base}@>();         // \expos
+
   public:
     @\exposid{sentinel}@() = default;
     constexpr explicit @\exposid{sentinel}@(sentinel_t<@\exposid{Base}@> end);
@@ -5625,9 +5610,9 @@ Equivalent to: \tcode{return y.\exposid{end_} - x.\exposid{current_};}
 \rSec3[range.take.overview]{Overview}
 
 \pnum
-\tcode{take_view} produces a \libconcept{view} of the first $N$ elements
-from another \libconcept{view}, or all the elements if the adapted
-\libconcept{view} contains fewer than $N$.
+\tcode{take_view} produces a view of the first $N$ elements
+from another view, or all the elements if the adapted
+view contains fewer than $N$.
 
 \pnum
 \indexlibrarymember{take}{views}%
@@ -5742,6 +5727,10 @@ namespace std::ranges {
           auto sz = range_difference_t<V>(size());
           return counted_iterator(ranges::begin(@\exposid{base_}@), sz);
         }
+      } else if constexpr (@\libconcept{sized_sentinel_for}@<sentinel_t<V>, iterator_t<V>>) {
+        auto it = ranges::begin(@\exposid{base_}@);
+        auto sz = std::min(@\exposid{count_}@, ranges::end(@\exposid{base_}@) - it);
+        return counted_iterator(std::move(it), sz);
       } else {
         return counted_iterator(ranges::begin(@\exposid{base_}@), @\exposid{count_}@);
       }
@@ -5755,6 +5744,10 @@ namespace std::ranges {
           auto sz = range_difference_t<const V>(size());
           return counted_iterator(ranges::begin(@\exposid{base_}@), sz);
         }
+      } else if constexpr (@\libconcept{sized_sentinel_for}@<sentinel_t<const V>, iterator_t<const V>>) {
+        auto it = ranges::begin(@\exposid{base_}@);
+        auto sz = std::min(@\exposid{count_}@, ranges::end(@\exposid{base_}@) - it);
+        return counted_iterator(std::move(it), sz);
       } else {
         return counted_iterator(ranges::begin(@\exposid{base_}@), @\exposid{count_}@);
       }
@@ -5766,6 +5759,8 @@ namespace std::ranges {
           return ranges::begin(@\exposid{base_}@) + range_difference_t<V>(size());
         else
           return default_sentinel;
+      } else if constexpr (@\libconcept{sized_sentinel_for}@<sentinel_t<V>, iterator_t<V>>) {
+        return default_sentinel;
       } else {
         return @\exposid{sentinel}@<false>{ranges::end(@\exposid{base_}@)};
       }
@@ -5777,6 +5772,8 @@ namespace std::ranges {
           return ranges::begin(@\exposid{base_}@) + range_difference_t<const V>(size());
         else
           return default_sentinel;
+      } else if constexpr (@\libconcept{sized_sentinel_for}@<sentinel_t<const V>, iterator_t<const V>>) {
+        return default_sentinel;
       } else {
         return @\exposid{sentinel}@<true>{ranges::end(@\exposid{base_}@)};
       }
@@ -5806,6 +5803,10 @@ constexpr take_view(V base, range_difference_t<V> count);
 
 \begin{itemdescr}
 \pnum
+\expects
+\tcode{count >= 0} is \tcode{true}.
+
+\pnum
 \effects
 Initializes \exposid{base_} with \tcode{std::move(base)} and
 \exposid{count_} with \tcode{count}.
@@ -5823,6 +5824,7 @@ namespace std::ranges {
     template<bool OtherConst>
       using @\exposid{CI}@ = counted_iterator<iterator_t<@\exposid{maybe-const}@<OtherConst, V>>>;  // \expos
     sentinel_t<@\exposid{Base}@> @\exposid{end_}@ = sentinel_t<@\exposid{Base}@>();                             // \expos
+
   public:
     @\exposid{sentinel}@() = default;
     constexpr explicit @\exposid{sentinel}@(sentinel_t<@\exposid{Base}@> end);
@@ -5895,8 +5897,8 @@ Equivalent to:
 \rSec3[range.take.while.overview]{Overview}
 
 \pnum
-Given a unary predicate \tcode{pred} and a \libconcept{view} \tcode{r},
-\tcode{take_while_view} produces a \libconcept{view}
+Given a unary predicate \tcode{pred} and a view \tcode{r},
+\tcode{take_while_view} produces a view
 of the range \range{ranges::be\-gin(r)}{ranges::find_if_not(r, pred)}.
 
 \indexlibraryglobal{take_while}%
@@ -6073,9 +6075,9 @@ Equivalent to:
 \rSec3[range.drop.overview]{Overview}
 
 \pnum
-\tcode{drop_view} produces a \libconcept{view}
-excluding the first $N$ elements from another \libconcept{view}, or
-an empty range if the adapted \libconcept{view} contains fewer than $N$ elements.
+\tcode{drop_view} produces a view
+excluding the first $N$ elements from another view, or
+an empty range if the adapted view contains fewer than $N$ elements.
 
 \pnum
 \indexlibrarymember{drop}{views}%
@@ -6255,8 +6257,8 @@ would have quadratic iteration complexity.
 \rSec3[range.drop.while.overview]{Overview}
 
 \pnum
-Given a unary predicate \tcode{pred} and a \libconcept{view} \tcode{r},
-\tcode{drop_while_view} produces a \libconcept{view}
+Given a unary predicate \tcode{pred} and a view \tcode{r},
+\tcode{drop_while_view} produces a view
 of the range \range{ranges::find_if_not(r, pred)}{ranges::end(r)}.
 
 \pnum
@@ -6270,7 +6272,7 @@ is expression-equivalent to \tcode{drop_while_view(E, F)}.
 \pnum
 \begin{example}
 \begin{codeblock}
-constexpr auto source = "  \t   \t   \t   hello there";
+constexpr auto source = "  \t   \t   \t   hello there"sv;
 auto is_invisible = [](const auto x) { return x == ' ' || x == '\t'; };
 auto skip_ws = views::drop_while(source, is_invisible);
 for (auto c : skip_ws) {
@@ -6369,8 +6371,7 @@ would have quadratic iteration complexity.
 \rSec3[range.join.overview]{Overview}
 
 \pnum
-\tcode{join_view} flattens a \libconcept{view} of ranges into a
-\libconcept{view}.
+\tcode{join_view} flattens a view of ranges into a view.
 
 \pnum
 \indexlibrarymember{join}{views}%
@@ -6490,7 +6491,7 @@ namespace std::ranges {
       is_reference_v<range_reference_t<@\exposidnc{Base}@>>;
 
     @\exposidnc{OuterIter}@ @\exposid{outer_}@ = @\exposidnc{OuterIter}@();                             // \expos
-    @\exposidnc{InnerIter}@ @\exposid{inner_}@ = @\exposidnc{InnerIter}@();                             // \expos
+    optional<@\exposidnc{InnerIter}@> @\exposid{inner_}@;                                 // \expos
     @\exposidnc{Parent}@* @\exposid{parent_}@  = nullptr;                                 // \expos
 
     constexpr void @\exposidnc{satisfy}@();                                   // \expos
@@ -6501,15 +6502,14 @@ namespace std::ranges {
     using value_type        = range_value_t<range_reference_t<@\exposid{Base}@>>;
     using difference_type   = @\seebelow@;
 
-    @\exposid{iterator}@() requires @\libconcept{default_initializable}@<@\exposid{OuterIter}@> &&
-                         @\itcorr[-2]\libconcept{default_initializable}@<@\exposid{InnerIter}@> = default;
+    @\exposid{iterator}@() requires @\libconcept{default_initializable}@<@\exposid{OuterIter}@> = default;
     constexpr @\exposid{iterator}@(@\exposid{Parent}@& parent, @\exposid{OuterIter}@ outer);
     constexpr @\exposid{iterator}@(@\exposid{iterator}@<!Const> i)
       requires Const &&
                @\libconcept{convertible_to}@<iterator_t<V>, @\exposid{OuterIter}@> &&
                @\libconcept{convertible_to}@<iterator_t<@\exposid{InnerRng}@>, @\exposid{InnerIter}@>;
 
-    constexpr decltype(auto) operator*() const { return *@\exposid{inner_}@; }
+    constexpr decltype(auto) operator*() const { return **@\exposid{inner_}@; }
 
     constexpr @\exposid{InnerIter}@ operator->() const
       requires @\exposconcept{has-arrow}@<@\exposid{InnerIter}@> && @\libconcept{copyable}@<@\exposid{InnerIter}@>;
@@ -6535,12 +6535,12 @@ namespace std::ranges {
                @\libconcept{equality_comparable}@<iterator_t<range_reference_t<@\exposid{Base}@>>>;
 
     friend constexpr decltype(auto) iter_move(const @\exposid{iterator}@& i)
-    noexcept(noexcept(ranges::iter_move(i.@\exposid{inner_}@))) {
-      return ranges::iter_move(i.@\exposid{inner_}@);
+    noexcept(noexcept(ranges::iter_move(*i.@\exposid{inner_}@))) {
+      return ranges::iter_move(*i.@\exposid{inner_}@);
     }
 
     friend constexpr void iter_swap(const @\exposid{iterator}@& x, const @\exposid{iterator}@& y)
-      noexcept(noexcept(ranges::iter_swap(x.@\exposid{inner_}@, y.@\exposid{inner_}@)))
+      noexcept(noexcept(ranges::iter_swap(*x.@\exposid{inner_}@, *y.@\exposid{inner_}@)))
       requires @\libconcept{indirectly_swappable}@<@\exposid{InnerIter}@>;
   };
 }
@@ -6617,11 +6617,11 @@ auto update_inner = [this](const iterator_t<@\exposid{Base}@>& x) -> auto&& {
 for (; @\exposid{outer_}@ != ranges::end(@\exposid{parent_}@->@\exposid{base_}@); ++@\exposid{outer_}@) {
   auto&& inner = update_inner(@\exposid{outer_}@);
   @\exposid{inner_}@ = ranges::begin(inner);
-  if (@\exposid{inner_}@ != ranges::end(inner))
+  if (*@\exposid{inner_}@ != ranges::end(inner))
     return;
 }
 if constexpr (@\exposid{ref-is-glvalue}@)
-  @\exposid{inner_}@ = @\exposid{InnerIter}@();
+  @\exposid{inner_}@.reset();
 \end{codeblock}
 \end{itemdescr}
 
@@ -6662,7 +6662,7 @@ constexpr @\exposid{InnerIter}@ operator->() const
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to \tcode{return \exposid{inner_};}
+Equivalent to: \tcode{return *\exposid{inner_};}
 \end{itemdescr}
 
 \indexlibrarymember{operator++}{join_view::\exposid{iterator}}%
@@ -6683,7 +6683,7 @@ Let \tcode{\placeholder{inner-range}} be:
 Equivalent to:
 \begin{codeblock}
 auto&& inner_rng = @\placeholder{inner-range}@;
-if (++@\exposid{inner_}@ == ranges::end(inner_rng)) {
+if (++*@\exposid{inner_}@ == ranges::end(inner_rng)) {
   ++@\exposid{outer_}@;
   @\exposid{satisfy}@();
 }
@@ -6735,9 +6735,9 @@ Equivalent to:
 \begin{codeblock}
 if (@\exposid{outer_}@ == ranges::end(@\exposid{parent_}@->@\exposid{base_}@))
   @\exposid{inner_}@ = ranges::end(*--@\exposid{outer_}@);
-while (@\exposid{inner_}@ == ranges::begin(*@\exposid{outer_}@))
-  @\exposid{inner_}@ = ranges::end(*--@\exposid{outer_}@);
---@\exposid{inner_}@;
+while (*@\exposid{inner_}@ == ranges::begin(*@\exposid{outer_}@))
+  *@\exposid{inner_}@ = ranges::end(*--@\exposid{outer_}@);
+--*@\exposid{inner_}@;
 return *this;
 \end{codeblock}
 \end{itemdescr}
@@ -6778,14 +6778,14 @@ Equivalent to:
 \indexlibrarymember{iter_swap}{join_view::\exposid{iterator}}%
 \begin{itemdecl}
 friend constexpr void iter_swap(const @\exposid{iterator}@& x, const @\exposid{iterator}@& y)
-  noexcept(noexcept(ranges::iter_swap(x.@\exposid{inner_}@, y.@\exposid{inner_}@)))
+  noexcept(noexcept(ranges::iter_swap(*x.@\exposid{inner_}@, *y.@\exposid{inner_}@)))
   requires @\libconcept{indirectly_swappable}@<@\exposid{InnerIter}@>;
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{return ranges::iter_swap(x.\exposid{inner_}, y.\exposid{inner_});}
+Equivalent to: \tcode{return ranges::iter_swap(*x.\exposid{inner_}, *y.\exposid{inner_});}
 \end{itemdescr}
 
 \rSec3[range.join.sentinel]{Class template \tcode{join_view::\exposid{sentinel}}}
@@ -6857,11 +6857,11 @@ Equivalent to: \tcode{return x.\exposid{outer_} == y.\exposid{end_};}
 \rSec3[range.join.with.overview]{Overview}
 
 \pnum
-\tcode{join_with_view} takes a \libconcept{view} and a delimiter, and
-flattens the \libconcept{view},
+\tcode{join_with_view} takes a view and a delimiter, and
+flattens the view,
 inserting every element of the delimiter
-in between elements of the \libconcept{view}.
-The delimiter can be a single element or a \libconcept{view} of elements.
+in between elements of the view.
+The delimiter can be a single element or a view of elements.
 
 \pnum
 \indexlibrarymember{join_with}{views}%
@@ -7103,8 +7103,8 @@ let \placeholder{PATTERNC} denote
 \item
 If
 \begin{codeblock}
-is_lvalue_reference_v<common_reference_t<iter_reference_t<@\exposid{InnerIter}@>,
-                                         iter_reference_t<@\exposid{PatternIter}@>>>
+is_reference_v<common_reference_t<iter_reference_t<@\exposid{InnerIter}@>,
+                                  iter_reference_t<@\exposid{PatternIter}@>>>
 \end{codeblock}
 is \tcode{false},
 \tcode{iterator_category} denotes \tcode{input_iterator_tag}.
@@ -7440,9 +7440,9 @@ Equivalent to: \tcode{return x.\exposid{outer_it_} == y.\exposid{end_};}
 \rSec3[range.lazy.split.overview]{Overview}
 
 \pnum
-\tcode{lazy_split_view} takes a \libconcept{view} and a delimiter, and splits
-the \libconcept{view} into subranges on the delimiter. The delimiter can be
-a single element or a \libconcept{view} of elements.
+\tcode{lazy_split_view} takes a view and a delimiter, and splits
+the view into subranges on the delimiter. The delimiter can be
+a single element or a view of elements.
 
 \pnum
 \indexlibrarymember{lazy_split}{views}%
@@ -7773,6 +7773,7 @@ namespace std::ranges {
     : view_interface<value_type> {
   private:
     @\exposid{outer-iterator}@ @\exposid{i_}@ = @\exposid{outer-iterator}@();               // \expos
+
   public:
     value_type() = default;
     constexpr explicit value_type(@\exposid{outer-iterator}@ i);
@@ -8002,9 +8003,9 @@ Equivalent to
 \rSec3[range.split.overview]{Overview}
 
 \pnum
-\tcode{split_view} takes a \libconcept{view} and a delimiter, and
-splits the \libconcept{view} into \tcode{subrange}s on the delimiter.
-The delimiter can be a single element or a \libconcept{view} of elements.
+\tcode{split_view} takes a view and a delimiter, and
+splits the view into \tcode{subrange}s on the delimiter.
+The delimiter can be a single element or a view of elements.
 
 \pnum
 The name \tcode{views::split} denotes
@@ -8301,7 +8302,7 @@ Equivalent to: \tcode{return x.\exposid{cur_} == y.\exposid{end_} \&\& !x.\expos
 
 \pnum
 \indextext{range!counted}%
-A counted view presents a \libconcept{view} of the elements
+A counted view presents a view of the elements
 of the counted range\iref{iterator.requirements.general} \countedrange{i}{n}
 for an iterator \tcode{i} and non-negative integer \tcode{n}.
 
@@ -8343,8 +8344,8 @@ Otherwise,
 \rSec3[range.common.overview]{Overview}
 
 \pnum
-\tcode{common_view} takes a \libconcept{view} which has different types for
-its iterator and sentinel and turns it into a \libconcept{view} of the same
+\tcode{common_view} takes a view which has different types for
+its iterator and sentinel and turns it into a view of the same
 elements with an iterator and sentinel of the same type.
 
 \pnum
@@ -8397,6 +8398,7 @@ namespace std::ranges {
   class common_view : public view_interface<common_view<V>> {
   private:
     V @\exposid{base_}@ = V();  // \expos
+
   public:
     common_view() requires @\libconcept{default_initializable}@<V> = default;
 
@@ -8421,14 +8423,14 @@ namespace std::ranges {
 
     constexpr auto end() {
       if constexpr (@\libconcept{random_access_range}@<V> && @\libconcept{sized_range}@<V>)
-        return ranges::begin(@\exposid{base_}@) + ranges::size(@\exposid{base_}@);
+        return ranges::begin(@\exposid{base_}@) + ranges::distance(@\exposid{base_}@);
       else
         return common_iterator<iterator_t<V>, sentinel_t<V>>(ranges::end(@\exposid{base_}@));
     }
 
     constexpr auto end() const requires @\libconcept{range}@<const V> {
       if constexpr (@\libconcept{random_access_range}@<const V> && @\libconcept{sized_range}@<const V>)
-        return ranges::begin(@\exposid{base_}@) + ranges::size(@\exposid{base_}@);
+        return ranges::begin(@\exposid{base_}@) + ranges::distance(@\exposid{base_}@);
       else
         return common_iterator<iterator_t<const V>, sentinel_t<const V>>(ranges::end(@\exposid{base_}@));
     }
@@ -8462,8 +8464,8 @@ Initializes \exposid{base_} with \tcode{std::move(base)}.
 \rSec3[range.reverse.overview]{Overview}
 
 \pnum
-\tcode{reverse_view} takes a bidirectional \libconcept{view} and produces
-another \libconcept{view} that iterates the same elements in reverse order.
+\tcode{reverse_view} takes a bidirectional view and produces
+another view that iterates the same elements in reverse order.
 
 \pnum
 \indexlibrarymember{reverse}{views}%
@@ -8518,6 +8520,7 @@ namespace std::ranges {
   class reverse_view : public view_interface<reverse_view<V>> {
   private:
     V @\exposid{base_}@ = V();  // \expos
+
   public:
     reverse_view() requires @\libconcept{default_initializable}@<V> = default;
 
@@ -8606,7 +8609,7 @@ Equivalent to: \tcode{return make_reverse_iterator(ranges::begin(\exposid{base_}
 \rSec3[range.as.const.overview]{Overview}
 
 \pnum
-\tcode{as_const_view} presents a \libconcept{view} of an underlying sequence as constant.
+\tcode{as_const_view} presents a view of an underlying sequence as constant.
 That is, the elements of an \tcode{as_const_view} cannot be modified.
 
 \pnum
@@ -8694,9 +8697,9 @@ Initializes \exposid{base_} with \tcode{std::move(base)}.
 
 \pnum
 \tcode{elements_view} takes
-a \libconcept{view} of tuple-like values and a \tcode{size_t}, and
-produces a \libconcept{view} with a value-type of the $N^\text{th}$ element
-of the adapted \libconcept{view}'s value-type.
+a view of tuple-like values and a \tcode{size_t}, and
+produces a view with a value-type of the $N^\text{th}$ element
+of the adapted view's value-type.
 
 \pnum
 \indexlibrarymember{elements}{views}%
@@ -9237,6 +9240,7 @@ namespace std::ranges {
   private:
     using @\exposid{Base}@ = @\exposid{maybe-const}@<Const, V>;                 // \expos
     sentinel_t<@\exposid{Base}@> @\exposid{end_}@ = sentinel_t<@\exposid{Base}@>();         // \expos
+
   public:
     @\exposid{sentinel}@() = default;
     constexpr explicit @\exposid{sentinel}@(sentinel_t<@\exposid{Base}@> end);
@@ -9343,8 +9347,8 @@ Equivalent to: \tcode{return x.\exposid{end_} - y.\exposid{current_};}
 
 \pnum
 \indexlibraryglobal{zip_view}%
-\tcode{zip_view} takes any number of \libconcept{view}s and
-produces a \libconcept{view} of tuples of references
+\tcode{zip_view} takes any number of views and
+produces a view of tuples of references
 to the corresponding elements of the constituent views.
 
 \pnum
@@ -9971,8 +9975,8 @@ Equivalent to \tcode{return -(x - y);}
 \pnum
 \indexlibraryglobal{zip_transform_view}%
 \tcode{zip_transform_view} takes an invocable object and
-any number of \libconcept{view}s and
-produces a \libconcept{view}
+any number of views and
+produces a view
 whose $M^\text{th}$ element is
 the result of applying the invocable object
 to the $M^\text{th}$ elements of all views.
@@ -9989,7 +9993,7 @@ If \tcode{Es} is an empty pack,
 let \tcode{FD} be \tcode{decay_t<decltype((F))>}.
 \begin{itemize}
 \item
-If \tcode{\libconcept{copy_constructible}<FD> \&\&
+If \tcode{\libconcept{move_constructible}<FD> \&\&
 \libconcept{regular_invocable}<FD\&>} is \tcode{false}, or
 if \tcode{decay_t<invoke_result_t<FD\&>>} is not an object type,
 \tcode{views::zip_transform(F, Es...)} is ill-formed.
@@ -10173,7 +10177,7 @@ If
 \begin{codeblock}
 invoke_result_t<@\exposid{maybe-const}@<Const, F>&, range_reference_t<@\exposid{maybe-const}@<Const, Views>>...>
 \end{codeblock}
-is not an lvalue reference,
+is not a reference,
 \tcode{iterator_category} denotes \tcode{input_iterator_tag}.
 \item
 Otherwise, let \tcode{Cs} denote the pack of types
@@ -10502,8 +10506,8 @@ Equivalent to: \tcode{return x.\exposid{inner_} - y.\exposid{inner_};}
 
 \pnum
 \indexlibraryglobal{adjacent_view}%
-\tcode{adjacent_view} takes a \libconcept{view} and
-produces a \libconcept{view} whose $M^\text{th}$ element is
+\tcode{adjacent_view} takes a view and
+produces a view whose $M^\text{th}$ element is
 a tuple of references to
 the $M^\text{th}$ through $(M + N - 1)^\text{th}$ elements of
 the original view.
@@ -11134,7 +11138,7 @@ Equivalent to: \tcode{return y.\exposid{end_} - x.\exposid{current_}.back();}
 \pnum
 \indexlibraryglobal{adjacent_transform_view}%
 \tcode{adjacent_transform_view} takes an invocable object and
-a \libconcept{view} and produces a \libconcept{view}
+a view and produces a view
 whose $M^\text{th}$ element is the result of applying the invocable object
 to the $M^\text{th}$ through $(M + N - 1)^\text{th}$ elements
 of the original view.
@@ -11323,7 +11327,7 @@ is defined as follows:
 \item
 If \tcode{invoke_result_t<\exposid{maybe-const}<Const, F>\&,
 \exposid{REPEAT}(range_reference_t<\exposid{Base}>, N)...>}
-is\linebreak not an lvalue reference,
+is\linebreak not a reference,
 \tcode{iterator_category} denotes \tcode{input_iterator_tag}.
 \item
 Otherwise, let \tcode{C} denote the type
@@ -11645,11 +11649,11 @@ Equivalent to \tcode{return x.\exposid{inner_} - y.\exposid{inner_};}
 \rSec3[range.chunk.overview]{Overview}
 
 \pnum
-\tcode{chunk_view} takes a \libconcept{view} and a number $N$ and
-produces a range of \libconcept{view}s
+\tcode{chunk_view} takes a view and a number $N$ and
+produces a range of views
 that are $N$-sized non-overlapping successive chunks of
-the elements of the original \libconcept{view}, in order.
-The last \libconcept{view} in the range can have fewer than $N$ elements.
+the elements of the original view, in order.
+The last view in the range can have fewer than $N$ elements.
 
 \pnum
 \indexlibrarymember{chunk}{views}%
@@ -12609,14 +12613,14 @@ Equivalent to: \tcode{return -(y - x);}
 \rSec3[range.slide.overview]{Overview}
 
 \pnum
-\tcode{slide_view} takes a \libconcept{view} and a number $N$ and
-produces a \libconcept{view}
-whose $M^\text{th}$ element is a \libconcept{view} over
+\tcode{slide_view} takes a view and a number $N$ and
+produces a view
+whose $M^\text{th}$ element is a view over
 the $M^\text{th}$ through
 $(M + N - 1)^\text{th}$ elements
-of the original \libconcept{view}.
-If the original \libconcept{view} has fewer than $N$ elements,
-the resulting \libconcept{view} is empty.
+of the original view.
+If the original view has fewer than $N$ elements,
+the resulting view is empty.
 
 \pnum
 \indexlibrarymember{slide}{views}%
@@ -13264,8 +13268,8 @@ friend constexpr range_difference_t<V>
 \rSec3[range.chunk.by.overview]{Overview}
 
 \pnum
-\tcode{chunk_by_view} takes a \libconcept{view} and a predicate, and
-splits the \libconcept{view} into \tcode{subrange}s
+\tcode{chunk_by_view} takes a view and a predicate, and
+splits the view into \tcode{subrange}s
 between each pair of adjacent elements
 for which the predicate returns \tcode{false}.
 
@@ -13301,7 +13305,7 @@ namespace std::ranges {
     requires @\libconcept{view}@<V> && is_object_v<Pred>
   class chunk_by_view : public view_interface<chunk_by_view<V, Pred>> {
     V @\exposid{base_}@ = V();                                          // \expos
-    @\exposidnc{movable-box}@<Pred> @\exposid{pred_}@ = Pred();                       // \expos
+    @\exposidnc{movable-box}@<Pred> @\exposid{pred_}@;                                // \expos
 
     // \ref{range.chunk.by.iter}, class \tcode{chunk_by_view::\exposid{iterator}}
     class @\exposidnc{iterator}@;                                         // \expos
@@ -13593,7 +13597,7 @@ friend constexpr bool operator==(const @\exposid{iterator}@& x, default_sentinel
 \rSec3[range.stride.overview]{Overview}
 
 \pnum
-\tcode{stride_view} presents a \libconcept{view} of an underlying sequence,
+\tcode{stride_view} presents a view of an underlying sequence,
 advancing over $n$ elements at a time,
 as opposed to the usual single-step succession.
 
@@ -14294,6 +14298,7 @@ namespace std::ranges {
     tuple<First, Vs...> @\exposid{bases_}@;                 // \expos
     // \ref{range.cartesian.iterator}, class template \tcode{cartesian_product_view::\exposid{iterator}}
     template<bool Const> class @\exposid{iterator}@;       // \expos
+
   public:
     constexpr cartesian_product_view() = default;
     constexpr explicit cartesian_product_view(First first_base, Vs... bases);
@@ -14341,7 +14346,9 @@ constexpr @\exposid{iterator}@<false> begin()
 \pnum
 \effects
 Equivalent to:
-\tcode{return \exposid{iterator}<false>(\exposid{tuple-transform}(ranges::begin, \exposid{bases_}));}
+\begin{codeblock}
+return @\exposid{iterator}@<false>(*this, @\exposid{tuple-transform}@(ranges::begin, @\exposid{bases_}@));
+\end{codeblock}
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -14353,7 +14360,9 @@ constexpr @\exposid{iterator}@<true> begin() const
 \pnum
 \effects
 Equivalent to:
-\tcode{return \exposid{iterator}<true>(\exposid{tuple-transform}(ranges::begin, \exposid{bases_}));}
+\begin{codeblock}
+return @\exposid{iterator}@<true>(*this, @\exposid{tuple-transform}@(ranges::begin, @\exposid{bases_}@));
+\end{codeblock}
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -14387,7 +14396,7 @@ if \tcode{rng} is the first underlying range and
 \effects
 Equivalent to:
 \begin{codeblock}
-@\exposid{iterator}@<@\exposid{is-const}@> it(@\exposid{tuple-transform}@(
+@\exposid{iterator}@<@\exposid{is-const}@> it(*this, @\exposid{tuple-transform}@(
   [](auto& rng){ return @\exposid{begin-or-first-end}@(rng); }, @\exposid{bases_}@));
 return it;
 \end{codeblock}
@@ -14490,9 +14499,9 @@ namespace std::ranges {
     friend constexpr difference_type operator-(const @\exposid{iterator}@& x, const @\exposid{iterator}@& y)
       requires @\exposconcept{cartesian-is-sized-sentinel}@<Const, iterator_t, First, Vs...>;
 
-    friend constexpr difference_type operator-(@\exposid{iterator}@ i, default_sentinel_t)
+    friend constexpr difference_type operator-(const @\exposid{iterator}@& i, default_sentinel_t)
       requires @\exposconcept{cartesian-is-sized-sentinel}@<Const, sentinel_t, First, Vs...>;
-    friend constexpr difference_type operator-(default_sentinel_t, @\exposid{iterator}@ i)
+    friend constexpr difference_type operator-(default_sentinel_t, const @\exposid{iterator}@& i)
       requires @\exposconcept{cartesian-is-sized-sentinel}@<Const, sentinel_t, First, Vs...>;
 
     friend constexpr auto iter_move(const @\exposid{iterator}@& i) noexcept(@\seebelow@);
@@ -14502,21 +14511,22 @@ namespace std::ranges {
         @\libconcept{indirectly_swappable}@<iterator_t<@\exposid{maybe-const}@<Const, Vs>>>);
 
   private:
-    @\exposid{maybe-const}@<Const, cartesian_product_view>* @\exposid{parent_}@ = nullptr;      // \expos
+    using @\exposidnc{Parent}@ = @\exposidnc{maybe-const}@<Const, cartesian_product_view>;          // \expos
+    @\exposidnc{Parent}@* @\exposidnc{parent_}@ = nullptr;                                          // \expos
     tuple<iterator_t<@\exposid{maybe-const}@<Const, First>>,
-      iterator_t<@\exposid{maybe-const}@<Const, Vs>>...> @\exposid{current_}@;                  // \expos
+      iterator_t<@\exposidnc{maybe-const}@<Const, Vs>>...> @\exposidnc{current_}@;                  // \expos
 
     template<size_t N = sizeof...(Vs)>
-      constexpr void @\exposid{next}@();                                            // \expos
+      constexpr void @\exposidnc{next}@();                                            // \expos
 
     template<size_t N = sizeof...(Vs)>
-      constexpr void @\exposid{prev}@();                                            // \expos
+      constexpr void @\exposidnc{prev}@();                                            // \expos
 
     template<class Tuple>
-      constexpr difference_type @\exposid{distance-from}@(Tuple t);                 // \expos
+      constexpr difference_type @\exposidnc{distance-from}@(const Tuple& t) const;    // \expos
 
-    constexpr explicit @\exposid{iterator}@(tuple<iterator_t<@\exposid{maybe-const}@<Const, First>>,
-      iterator_t<@\exposid{maybe-const}@<Const, Vs>>...> current);                  // \expos
+    constexpr @\exposid{iterator}@(@\exposid{Parent}@& parent, tuple<iterator_t<@\exposid{maybe-const}@<Const, First>>,
+      iterator_t<@\exposidnc{maybe-const}@<Const, Vs>>...> current);                  // \expos
   };
 }
 \end{codeblock}
@@ -14599,7 +14609,7 @@ if (it == ranges::begin(std::get<N>(@\exposid{parent_}@->@\exposid{bases_}@))) {
 
 \begin{itemdecl}
 template<class Tuple>
-  constexpr difference_type @\exposid{distance-from}@(Tuple t);
+  constexpr difference_type @\exposid{distance-from}@(const Tuple& t) const;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -14610,7 +14620,7 @@ Let:
 $\exposid{scaled-size}(N)$ be the product of
 \tcode{static_cast<difference_type>(ranges::size(std::get<\brk{}$N$>(\exposid{parent_}->\exposid{bases_})))} and
 $\exposid{scaled-size}(N+1)$
-if $N < \tcode{sizeof...(Vs)}$, otherwise \tcode{static_cast<difference_type>(1)};
+if $N \le \tcode{sizeof...(Vs)}$, otherwise \tcode{static_cast<difference_type>(1)};
 \item
 $\exposid{scaled-distance}(N)$ be the product of
 \tcode{static_cast<difference_type>(std::get<$N$>(\exposid{cur\-rent_}) - std::get<$N$>(t))} and $\exposid{scaled-size}(N+1)$; and
@@ -14629,14 +14639,16 @@ for every integer $0 \le N \le \tcode{sizeof...(Vs)}$.
 \end{itemdescr}
 
 \begin{itemdecl}
-constexpr explicit @\exposid{iterator}@(tuple<iterator_t<@\exposid{maybe-const}@<Const, First>>,
+constexpr @\exposid{iterator}@(@\exposid{Parent}@& parent, tuple<iterator_t<@\exposid{maybe-const}@<Const, First>>,
   iterator_t<@\exposid{maybe-const}@<Const, Vs>>...> current);
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Initializes \exposid{current_} with \tcode{std::move(current)}.
+Initializes
+\exposid{parent_} with \tcode{addressof(parent)} and
+\exposid{current_} with \tcode{std::move(current)}.
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -14648,7 +14660,9 @@ constexpr @\exposid{iterator}@(@\exposid{iterator}@<!Const> i) requires Const &&
 \begin{itemdescr}
 \pnum
 \effects
-Initializes \exposid{current_} with \tcode{std::move(i.\exposid{current_})}.
+Initializes
+\exposid{parent_} with \tcode{i.\exposid{parent_}} and
+\exposid{current_} with \tcode{std::move(i.\exposid{current_})}.
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -14880,7 +14894,7 @@ Equivalent to: \tcode{return x.\exposid{distance-from}(y.\exposid{current_});}
 \end{itemdescr}
 
 \begin{itemdecl}
-friend constexpr difference_type operator-(@\exposid{iterator}@ i, default_sentinel_t)
+friend constexpr difference_type operator-(const @\exposid{iterator}@& i, default_sentinel_t)
   requires @\exposconcept{cartesian-is-sized-sentinel}@<Const, sentinel_t, First, Vs...>;
 \end{itemdecl}
 
@@ -14904,7 +14918,7 @@ Equivalent to: \tcode{return i.\exposid{distance-from}(\exposid{end-tuple});}
 \end{itemdescr}
 
 \begin{itemdecl}
-friend constexpr difference_type operator-(default_sentinel_t s, @\exposid{iterator}@ i)
+friend constexpr difference_type operator-(default_sentinel_t s, const @\exposid{iterator}@& i)
   requires @\exposconcept{cartesian-is-sized-sentinel}@<Const, sentinel_t, First, Vs...>;
 \end{itemdecl}
 
@@ -14967,7 +14981,7 @@ for\newline every integer $0 \le i \le \tcode{sizeof...(Vs)}$.
 
 \pnum
 Class template \tcode{generator} presents
-a \libconcept{view} of the elements yielded by the evaluation of a coroutine.
+a view of the elements yielded by the evaluation of a coroutine.
 
 \pnum
 A \tcode{generator} generates a sequence of elements by
@@ -15212,8 +15226,8 @@ namespace std {
         @\libconcept{constructible_from}@<remove_cvref_t<yielded>, const remove_reference_t<yielded>&>;
 
     template<class R2, class V2, class Alloc2, class Unused>
-      requires @\libconcept{same_as}@<typename generator<T2, V2, Alloc2>::yielded, yielded>
-        auto yield_value(ranges::elements_of<generator<T2, V2, Alloc2>&&, Unused> g) noexcept;
+      requires @\libconcept{same_as}@<typename generator<R2, V2, Alloc2>::yielded, yielded>
+        auto yield_value(ranges::elements_of<generator<R2, V2, Alloc2>&&, Unused> g) noexcept;
 
     template<ranges::@\libconcept{input_range}@ R, class Alloc>
       requires @\libconcept{convertible_to}@<ranges::range_reference_t<R>, yielded>
@@ -15315,7 +15329,7 @@ auto yield_value(const remove_reference_t<yielded>& lval)
 A handle referring to the coroutine
 whose promise object is \tcode{*this}
 is at the top of \tcode{*\exposid{active_}}
-of some \tcode{generator} object \tcode{x}.
+of some \tcode{generator} object.
 
 \pnum
 \returns
@@ -15338,9 +15352,9 @@ has type \tcode{void}\iref{expr.yield}.
 
 \indexlibrarymember{yield_value}{generator::promise_type}%
 \begin{itemdecl}
-template<class T2, class V2, class Alloc2, class Unused>
-  requires @\libconcept{same_as}@<typename generator<T2, V2, Alloc2>::yielded, yielded>
-  auto yield_value(ranges::elements_of<generator<T2, V2, Alloc2>&&, Unused> g) noexcept;
+template<class R2, class V2, class Alloc2, class Unused>
+  requires @\libconcept{same_as}@<typename generator<R2, V2, Alloc2>::yielded, yielded>
+  auto yield_value(ranges::elements_of<generator<R2, V2, Alloc2>&&, Unused> g) noexcept;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -15400,9 +15414,10 @@ return yield_value(ranges::elements_of(nested(
 \end{codeblock}
 
 \pnum
-\remarks
+\begin{note}
 A \grammarterm{yield-expression} that calls this function
 has type \tcode{void}\iref{expr.yield}.
+\end{note}
 \end{itemdescr}
 
 \indexlibrarymember{unhandled_exception}{generator::promise_type}%
@@ -15422,8 +15437,8 @@ of some \tcode{generator} object \tcode{x}.
 If the handle referring to the coroutine
 whose promise object is \tcode{*this}
 is the sole element of \tcode{*x.\exposid{active_}},
-equivalent to: \tcode{throw;}
-Otherwise, assigns \tcode{current_exception()} to \exposid{except_}.
+equivalent to \tcode{throw},
+otherwise, assigns \tcode{current_exception()} to \exposid{except_}.
 \end{itemdescr}
 
 \indexlibrarymember{operator new}{generator::promise_type}%
@@ -15512,7 +15527,7 @@ namespace std {
     @\exposid{iterator}@& operator++();
     void operator++(int);
 
-    friend bool operator==(@\exposid{iterator}@ i, default_sentinel_t);
+    friend bool operator==(const @\exposid{iterator}@& i, default_sentinel_t);
 
   private:
     coroutine_handle<promise_type> @\exposid{coroutine_}@; // \expos
@@ -15600,7 +15615,7 @@ Equivalent to \tcode{++*this}.
 
 \indexlibrarymember{operator==}{generator::\exposid{iterator}}%
 \begin{itemdecl}
-friend bool operator==(@\exposid{iterator}@ i, default_sentinel_t);
+friend bool operator==(const @\exposid{iterator}@& i, default_sentinel_t);
 \end{itemdecl}
 
 \begin{itemdescr}
