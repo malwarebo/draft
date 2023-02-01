@@ -346,7 +346,7 @@ namespace std {
     using const_sentinel = @\seebelow@;                                               // freestanding
 
   // \ref{const.iterators.iterator}, class template \tcode{basic_const_iterator}
-  template<class Iterator>
+  template<@\libconcept{input_iterator}@ Iterator>
     class basic_const_iterator;                                                     // freestanding
 
   template<class T, @\libconcept{common_with}@<T> U>
@@ -3358,7 +3358,7 @@ Assigns \tcode{u.current} to \tcode{current}.
 
 \indexlibrarymember{base}{reverse_iterator}%
 \begin{itemdecl}
-constexpr Iterator base() const;          // explicit
+constexpr Iterator base() const;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -5259,7 +5259,8 @@ template<@\libconcept{input_iterator}@ I, @\libconcept{sentinel_for}@<I> S, @\li
          @\libconcept{indirect_unary_predicate}@<I> Pred>
   requires @\libconcept{indirectly_movable}@<I, O>
 void move_if(I first, S last, O out, Pred pred) {
-  ranges::copy_if(move_iterator<I>{first}, move_sentinel<S>{last}, out, pred);
+  ranges::copy_if(move_iterator<I>{std::move(first)}, move_sentinel<S>{last},
+                  std::move(out), pred);
 }
 \end{codeblock}
 \end{example}
