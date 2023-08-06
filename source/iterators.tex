@@ -85,8 +85,11 @@ namespace std {
     concept indirectly_readable = @\seebelow@;                                        // freestanding
 
   template<@\libconcept{indirectly_readable}@ T>
+    using @\exposidnc{indirect-value-t}@ = @\seebelow@;         // \expos
+
+  template<@\libconcept{indirectly_readable}@ T>
     using @\libglobal{iter_common_reference_t}@ =                                                 // freestanding
-      common_reference_t<iter_reference_t<T>, iter_value_t<T>&>;
+      common_reference_t<iter_reference_t<T>, @\exposid{indirect-value-t}@<T>>;
 
   // \ref{iterator.concept.writable}, concept \libconcept{indirectly_writable}
   template<class Out, class T>
@@ -243,11 +246,11 @@ namespace std {
                                              S bound);
 
     // \ref{range.iter.op.distance}, \tcode{ranges::distance}
-    template<@\libconcept{input_or_output_iterator}@ I, @\libconcept{sentinel_for}@<I> S>
+    template<class I, @\libconcept{sentinel_for}@<I> S>
       requires (!@\libconcept{sized_sentinel_for}@<S, I>)
       constexpr iter_difference_t<I> distance(I first, S last);                     // freestanding
-    template<@\libconcept{input_or_output_iterator}@ I, @\libconcept{sized_sentinel_for}@<I> S>
-      constexpr iter_difference_t<I> distance(const I& first, const S& last);       // freestanding
+    template<class I, @\libconcept{sized_sentinel_for}@<decay_t<I>> S>
+      constexpr iter_difference_t<decay_t<I>> distance(I&& first, S last);          // freestanding
     template<@\libconcept{range}@ R>
       constexpr range_difference_t<R> distance(R&& r);                              // freestanding
 
@@ -350,14 +353,17 @@ namespace std {
     class basic_const_iterator;                                                     // freestanding
 
   template<class T, @\libconcept{common_with}@<T> U>
+    requires @\libconcept{input_iterator}@<common_type_t<T, U>>
   struct common_type<basic_const_iterator<T>, U> {                                  // freestanding
     using type = basic_const_iterator<common_type_t<T, U>>;
   };
   template<class T, @\libconcept{common_with}@<T> U>
+    requires @\libconcept{input_iterator}@<common_type_t<T, U>>
   struct common_type<U, basic_const_iterator<T>> {                                  // freestanding
     using type = basic_const_iterator<common_type_t<T, U>>;
   };
   template<class T, @\libconcept{common_with}@<T> U>
+    requires @\libconcept{input_iterator}@<common_type_t<T, U>>
   struct common_type<basic_const_iterator<T>, basic_const_iterator<U>> {            // freestanding
     using type = basic_const_iterator<common_type_t<T, U>>;
   };
@@ -1164,7 +1170,7 @@ that exchanges the values\iref{concept.swappable} denoted by its
 arguments.
 
 \pnum
-Let \exposid{iter-exchange-move} be the exposition-only function:
+Let \exposid{iter-exchange-move} be the exposition-only function template:
 \begin{itemdecl}
 template<class X, class Y>
   constexpr iter_value_t<X> @\exposid{iter-exchange-move}@(X&& x, Y&& y)
@@ -1384,7 +1390,7 @@ template<class I>
 
 \pnum
 A type \tcode{I} is an \defnadj{integer-class}{type}
-if it is in a set of \impldef{integer-class type} types
+if it is in a set of \impldef{set of integer-class types} types
 that behave as integer types do, as defined below.
 \begin{note}
 An integer-class type is not necessarily a class type.
@@ -2408,6 +2414,21 @@ the following expressions are valid as shown in \tref{randomaccessiterator}.
 There are several concepts that group requirements of algorithms that
 take callable objects\iref{func.def} as arguments.
 
+\rSec3[indirectcallable.traits]{Indirect callable traits}
+
+\pnum
+To implement algorithms taking projections,
+it is necessary to determine the projected type of an iterator's value type.
+For the exposition-only alias template \exposid{indirect-value-t},
+\tcode{\exposid{indirect-value-t}<T>} denotes
+\begin{itemize}
+\item
+\tcode{invoke_result_t<Proj\&, \exposid{indirect-value-t}<I>>}
+if \tcode{T} names \tcode{projected<I, Proj>}, and
+\item
+\tcode{iter_value_t<T>\&} otherwise.
+\end{itemize}
+
 \rSec3[indirectcallable.indirectinvocable]{Indirect callables}
 
 \pnum
@@ -2420,29 +2441,29 @@ namespace std {
     concept @\deflibconcept{indirectly_unary_invocable}@ =
       @\libconcept{indirectly_readable}@<I> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{invocable}@<F&, iter_value_t<I>&> &&
+      @\libconcept{invocable}@<F&, @\exposidnc{indirect-value-t}@<I>> &&
       @\libconcept{invocable}@<F&, iter_reference_t<I>> &&
       @\libconcept{invocable}@<F&, iter_common_reference_t<I>> &&
       @\libconcept{common_reference_with}@<
-        invoke_result_t<F&, iter_value_t<I>&>,
+        invoke_result_t<F&, @\exposidnc{indirect-value-t}@<I>>,
         invoke_result_t<F&, iter_reference_t<I>>>;
 
   template<class F, class I>
     concept @\deflibconcept{indirectly_regular_unary_invocable}@ =
       @\libconcept{indirectly_readable}@<I> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{regular_invocable}@<F&, iter_value_t<I>&> &&
+      @\libconcept{regular_invocable}@<F&, @\exposidnc{indirect-value-t}@<I>> &&
       @\libconcept{regular_invocable}@<F&, iter_reference_t<I>> &&
       @\libconcept{regular_invocable}@<F&, iter_common_reference_t<I>> &&
       @\libconcept{common_reference_with}@<
-        invoke_result_t<F&, iter_value_t<I>&>,
+        invoke_result_t<F&, @\exposidnc{indirect-value-t}@<I>>,
         invoke_result_t<F&, iter_reference_t<I>>>;
 
   template<class F, class I>
     concept @\deflibconcept{indirect_unary_predicate}@ =
       @\libconcept{indirectly_readable}@<I> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{predicate}@<F&, iter_value_t<I>&> &&
+      @\libconcept{predicate}@<F&, @\exposidnc{indirect-value-t}@<I>> &&
       @\libconcept{predicate}@<F&, iter_reference_t<I>> &&
       @\libconcept{predicate}@<F&, iter_common_reference_t<I>>;
 
@@ -2450,9 +2471,9 @@ namespace std {
     concept @\deflibconcept{indirect_binary_predicate}@ =
       @\libconcept{indirectly_readable}@<I1> && @\libconcept{indirectly_readable}@<I2> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{predicate}@<F&, iter_value_t<I1>&, iter_value_t<I2>&> &&
-      @\libconcept{predicate}@<F&, iter_value_t<I1>&, iter_reference_t<I2>> &&
-      @\libconcept{predicate}@<F&, iter_reference_t<I1>, iter_value_t<I2>&> &&
+      @\libconcept{predicate}@<F&, @\exposidnc{indirect-value-t}@<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
+      @\libconcept{predicate}@<F&, @\exposidnc{indirect-value-t}@<I1>, iter_reference_t<I2>> &&
+      @\libconcept{predicate}@<F&, iter_reference_t<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
       @\libconcept{predicate}@<F&, iter_reference_t<I1>, iter_reference_t<I2>> &&
       @\libconcept{predicate}@<F&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
 
@@ -2460,9 +2481,9 @@ namespace std {
     concept @\deflibconcept{indirect_equivalence_relation}@ =
       @\libconcept{indirectly_readable}@<I1> && @\libconcept{indirectly_readable}@<I2> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{equivalence_relation}@<F&, iter_value_t<I1>&, iter_value_t<I2>&> &&
-      @\libconcept{equivalence_relation}@<F&, iter_value_t<I1>&, iter_reference_t<I2>> &&
-      @\libconcept{equivalence_relation}@<F&, iter_reference_t<I1>, iter_value_t<I2>&> &&
+      @\libconcept{equivalence_relation}@<F&, @\exposidnc{indirect-value-t}@<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
+      @\libconcept{equivalence_relation}@<F&, @\exposidnc{indirect-value-t}@<I1>, iter_reference_t<I2>> &&
+      @\libconcept{equivalence_relation}@<F&, iter_reference_t<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
       @\libconcept{equivalence_relation}@<F&, iter_reference_t<I1>, iter_reference_t<I2>> &&
       @\libconcept{equivalence_relation}@<F&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
 
@@ -2470,9 +2491,9 @@ namespace std {
     concept @\deflibconcept{indirect_strict_weak_order}@ =
       @\libconcept{indirectly_readable}@<I1> && @\libconcept{indirectly_readable}@<I2> &&
       @\libconcept{copy_constructible}@<F> &&
-      @\libconcept{strict_weak_order}@<F&, iter_value_t<I1>&, iter_value_t<I2>&> &&
-      @\libconcept{strict_weak_order}@<F&, iter_value_t<I1>&, iter_reference_t<I2>> &&
-      @\libconcept{strict_weak_order}@<F&, iter_reference_t<I1>, iter_value_t<I2>&> &&
+      @\libconcept{strict_weak_order}@<F&, @\exposidnc{indirect-value-t}@<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
+      @\libconcept{strict_weak_order}@<F&, @\exposidnc{indirect-value-t}@<I1>, iter_reference_t<I2>> &&
+      @\libconcept{strict_weak_order}@<F&, iter_reference_t<I1>, @\exposidnc{indirect-value-t}@<I2>> &&
       @\libconcept{strict_weak_order}@<F&, iter_reference_t<I1>, iter_reference_t<I2>> &&
       @\libconcept{strict_weak_order}@<F&, iter_common_reference_t<I1>, iter_common_reference_t<I2>>;
 }
@@ -2483,7 +2504,7 @@ namespace std {
 \pnum
 Class template \tcode{projected} is used to constrain algorithms
 that accept callable objects and projections\iref{defns.projection}.
-It combines a \libconcept{indirectly_readable} type \tcode{I} and
+It combines an \libconcept{indirectly_readable} type \tcode{I} and
 a callable object type \tcode{Proj} into a new \libconcept{indirectly_readable} type
 whose \tcode{reference} type is the result of applying
 \tcode{Proj} to the \tcode{iter_reference_t} of \tcode{I}.
@@ -2491,16 +2512,18 @@ whose \tcode{reference} type is the result of applying
 \indexlibraryglobal{projected}%
 \begin{codeblock}
 namespace std {
-  template<@\libconcept{indirectly_readable}@ I, @\libconcept{indirectly_regular_unary_invocable}@<I> Proj>
-  struct projected {
-    using value_type = remove_cvref_t<indirect_result_t<Proj&, I>>;
-    indirect_result_t<Proj&, I> operator*() const;              // \notdef
+  template<class I, class Proj>
+  struct @\exposidnc{projected-impl}@ {                               // \expos
+    struct @\exposidnc{type}@ {                                       // \expos
+      using value_type = remove_cvref_t<indirect_result_t<Proj&, I>>;
+      using difference_type = iter_difference_t<I>;     // present only if \tcode{I}
+                                                        // models \libconcept{weakly_incrementable}
+      indirect_result_t<Proj&, I> operator*() const;    // \notdef
+    };
   };
 
-  template<@\libconcept{weakly_incrementable}@ I, class Proj>
-  struct incrementable_traits<projected<I, Proj>> {
-    using difference_type = iter_difference_t<I>;
-  };
+  template<@\libconcept{indirectly_readable}@ I, @\libconcept{indirectly_regular_unary_invocable}@<I> Proj>
+    using projected = @\exposid{projected-impl}@<I, Proj>::@\exposid{type}@;
 }
 \end{codeblock}
 
@@ -2536,7 +2559,7 @@ in addition to those that appear in the concepts' bodies\iref{range.cmp}.
 
 \pnum
 The \libconcept{indirectly_movable} concept specifies the relationship between
-a \libconcept{indirectly_readable} type and a \libconcept{indirectly_writable} type
+an \libconcept{indirectly_readable} type and an \libconcept{indirectly_writable} type
 between which values may be moved.
 
 \begin{codeblock}
@@ -2578,7 +2601,7 @@ valid but unspecified\iref{lib.types.movedfrom}.
 
 \pnum
 The \libconcept{indirectly_copyable} concept specifies the relationship between
-a \libconcept{indirectly_readable} type and a \libconcept{indirectly_writable} type
+an \libconcept{indirectly_readable} type and an \libconcept{indirectly_writable} type
 between which values may be copied.
 
 \begin{codeblock}
@@ -3028,7 +3051,7 @@ the ending and starting positions of \tcode{i}.
 \rSec3[range.iter.op.distance]{\tcode{ranges::distance}}
 \indexlibraryglobal{distance}%
 \begin{itemdecl}
-template<@\libconcept{input_or_output_iterator}@ I, @\libconcept{sentinel_for}@<I> S>
+template<class I, @\libconcept{sentinel_for}@<I> S>
   requires (!@\libconcept{sized_sentinel_for}@<S, I>)
   constexpr iter_difference_t<I> ranges::distance(I first, S last);
 \end{itemdecl}
@@ -3046,14 +3069,14 @@ returns the number of increments.
 
 \indexlibraryglobal{distance}%
 \begin{itemdecl}
-template<@\libconcept{input_or_output_iterator}@ I, @\libconcept{sized_sentinel_for}@<I> S>
-  constexpr iter_difference_t<I> ranges::distance(const I& first, const S& last);
+template<class I, @\libconcept{sized_sentinel_for}@<decay_t<I>> S>
+  constexpr iter_difference_t<decay_t<I>> ranges::distance(I&& first, S last);
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{return last - first;}
+Equivalent to: \tcode{return last - static_cast<const decay_t<I>\&>(first);}
 \end{itemdescr}
 
 \indexlibraryglobal{distance}%
@@ -4211,12 +4234,18 @@ Otherwise, \tcode{S}.
 \begin{codeblock}
 namespace std {
   template<class I>
-    concept @\exposconcept{not-a-const-iterator}@ = @\seebelow@;
+    concept @\exposconcept{not-a-const-iterator}@ = @\seebelow@;                   // \expos
+
+  template<@\libconcept{indirectly_readable}@ I>
+    using @\exposidnc{iter-const-rvalue-reference-t}@ =                       // \expos
+      common_reference_t<const iter_value_t<I>&&, iter_rvalue_reference_t<I>>;
 
   template<@\libconcept{input_iterator}@ Iterator>
   class @\libglobal{basic_const_iterator}@ {
     Iterator @\exposidnc{current_}@ = Iterator();                             // \expos
     using @\exposidnc{reference}@ = iter_const_reference_t<Iterator>;         // \expos
+    using @\exposidnc{rvalue-reference}@ =                                    // \expos
+      @\exposid{iter-const-rvalue-reference-t}@<Iterator>;
 
   public:
     using iterator_concept = @\seebelow@;
@@ -4236,7 +4265,7 @@ namespace std {
     constexpr Iterator base() &&;
 
     constexpr @\exposid{reference}@ operator*() const;
-    constexpr const value_type* operator->() const
+    constexpr const auto* operator->() const
        requires is_lvalue_reference_v<iter_reference_t<Iterator>> &&
                 @\libconcept{same_as}@<remove_cvref_t<iter_reference_t<Iterator>>, value_type>;
 
@@ -4256,34 +4285,35 @@ namespace std {
       requires @\libconcept{random_access_iterator}@<Iterator>;
 
     template<@\libconcept{sentinel_for}@<Iterator> S>
-      friend constexpr bool operator==(const basic_const_iterator& x, const S& s);
+      constexpr bool operator==(const S& s) const;
 
-    friend constexpr bool operator<(const basic_const_iterator& x, const basic_const_iterator& y)
+    constexpr bool operator<(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator>;
-    friend constexpr bool operator>(const basic_const_iterator& x, const basic_const_iterator& y)
+    constexpr bool operator>(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator>;
-    friend constexpr bool operator<=(const basic_const_iterator& x,
-                                     const basic_const_iterator& y)
+    constexpr bool operator<=(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator>;
-    friend constexpr bool operator>=(const basic_const_iterator& x,
-                                     const basic_const_iterator& y)
+    constexpr bool operator>=(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator>;
-    friend constexpr auto operator<=>(const basic_const_iterator& x,
-                                      const basic_const_iterator& y)
+    constexpr auto operator<=>(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{three_way_comparable}@<Iterator>;
 
     template<@\exposconcept{different-from}@<basic_const_iterator> I>
-      friend constexpr bool operator<(const basic_const_iterator& x, const I& y)
+      constexpr bool operator<(const I& y) const
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
     template<@\exposconcept{different-from}@<basic_const_iterator> I>
-      friend constexpr bool operator>(const basic_const_iterator& x, const I& y)
+      constexpr bool operator>(const I& y) const
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
     template<@\exposconcept{different-from}@<basic_const_iterator> I>
-      friend constexpr bool operator<=(const basic_const_iterator& x, const I& y)
+      constexpr bool operator<=(const I& y) const
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
     template<@\exposconcept{different-from}@<basic_const_iterator> I>
-      friend constexpr bool operator>=(const basic_const_iterator& x, const I& y)
+      constexpr bool operator>=(const I& y) const
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
+    template<@\exposconcept{different-from}@<basic_const_iterator> I>
+      constexpr auto operator<=>(const I& y) const
+        requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I> &&
+                 @\libconcept{three_way_comparable_with}@<Iterator, I>;
     template<@\exposconcept{not-a-const-iterator}@ I>
       friend constexpr bool operator<(const I& x, const basic_const_iterator& y)
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
@@ -4296,10 +4326,6 @@ namespace std {
     template<@\exposconcept{not-a-const-iterator}@ I>
       friend constexpr bool operator>=(const I& x, const basic_const_iterator& y)
         requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
-    template<@\exposconcept{different-from}@<basic_const_iterator> I>
-      friend constexpr auto operator<=>(const basic_const_iterator& x, const I& y)
-        requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I> &&
-                 @\libconcept{three_way_comparable_with}@<Iterator, I>;
 
     friend constexpr basic_const_iterator operator+(const basic_const_iterator& i,
                                                     difference_type n)
@@ -4311,10 +4337,15 @@ namespace std {
                                                     difference_type n)
       requires @\libconcept{random_access_iterator}@<Iterator>;
     template<@\libconcept{sized_sentinel_for}@<Iterator> S>
-      friend constexpr difference_type operator-(const basic_const_iterator& x, const S& y);
-    template<@\libconcept{sized_sentinel_for}@<Iterator> S>
-      requires @\exposconcept{different-from}@<S, basic_const_iterator>
+      constexpr difference_type operator-(const S& y) const;
+    template<@\exposconcept{not-a-const-iterator}@ S>
+      requires @\libconcept{sized_sentinel_for}@<S, Iterator>
       friend constexpr difference_type operator-(const S& x, const basic_const_iterator& y);
+    friend constexpr @\exposid{rvalue-reference}@ iter_move(const basic_const_iterator& i)
+      noexcept(noexcept(static_cast<@\exposid{rvalue-reference}@>(ranges::iter_move(i.@\exposid{current_}@))))
+      {
+        return static_cast<@\exposid{rvalue-reference}@>(ranges::iter_move(i.@\exposid{current_}@));
+      }
   };
 }
 \end{codeblock}
@@ -4427,7 +4458,7 @@ Equivalent to: \tcode{return static_cast<\exposid{reference}>(*\exposid{current_
 
 \indexlibrarymember{operator->}{basic_const_iterator}%
 \begin{itemdecl}
-constexpr const value_type* operator->() const
+constexpr const auto* operator->() const
   requires is_lvalue_reference_v<iter_reference_t<Iterator>> &&
            @\libconcept{same_as}@<remove_cvref_t<iter_reference_t<Iterator>>, value_type>;
 \end{itemdecl}
@@ -4549,13 +4580,13 @@ Equivalent to: \tcode{return static_cast<\exposid{reference}>(\exposid{current_}
 \indexlibrarymember{operator==}{basic_const_iterator}%
 \begin{itemdecl}
 template<@\libconcept{sentinel_for}@<Iterator> S>
-  friend constexpr bool operator==(const basic_const_iterator& x, const S& s);
+  constexpr bool operator==(const S& s) const;
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{return x.\exposid{current_} == s;}
+Equivalent to: \tcode{return \exposid{current_} == s;}
 \end{itemdescr}
 
 \indexlibrarymember{operator<}{basic_const_iterator}%
@@ -4564,15 +4595,15 @@ Equivalent to: \tcode{return x.\exposid{current_} == s;}
 \indexlibrarymember{operator>=}{basic_const_iterator}%
 \indexlibrarymember{operator<=>}{basic_const_iterator}%
 \begin{itemdecl}
-friend constexpr bool operator<(const basic_const_iterator& x, const basic_const_iterator& y)
+constexpr bool operator<(const basic_const_iterator& y) const
   requires @\libconcept{random_access_iterator}@<Iterator>;
-friend constexpr bool operator>(const basic_const_iterator& x, const basic_const_iterator& y)
+constexpr bool operator>(const basic_const_iterator& y) const
   requires @\libconcept{random_access_iterator}@<Iterator>;
-friend constexpr bool operator<=(const basic_const_iterator& x, const basic_const_iterator& y)
+constexpr bool operator<=(const basic_const_iterator& y) const
   requires @\libconcept{random_access_iterator}@<Iterator>;
-friend constexpr bool operator>=(const basic_const_iterator& x, const basic_const_iterator& y)
+constexpr bool operator>=(const basic_const_iterator& y) const
   requires @\libconcept{random_access_iterator}@<Iterator>;
-friend constexpr auto operator<=>(const basic_const_iterator& x, const basic_const_iterator& y)
+constexpr auto operator<=>(const basic_const_iterator& y) const
   requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{three_way_comparable}@<Iterator>;
 \end{itemdecl}
 
@@ -4583,7 +4614,7 @@ Let \tcode{\placeholder{op}} be the operator.
 \pnum
 \effects
 Equivalent to:
-\tcode{return x.\exposid{current_} \placeholder{op} \exposid{y.current_};}
+\tcode{return \exposid{current_} \placeholder{op} \exposid{y.current_};}
 \end{itemdescr}
 
 \indexlibrarymember{operator<}{basic_const_iterator}%
@@ -4593,19 +4624,19 @@ Equivalent to:
 \indexlibrarymember{operator<=>}{basic_const_iterator}%
 \begin{itemdecl}
 template<@\exposconcept{different-from}@<basic_const_iterator> I>
-  friend constexpr bool operator<(const basic_const_iterator& x, const I& y)
+  constexpr bool operator<(const I& y) const
     requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
 template<@\exposconcept{different-from}@<basic_const_iterator> I>
-  friend constexpr bool operator>(const basic_const_iterator& x, const I& y)
+  constexpr bool operator>(const I& y) const
     requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
 template<@\exposconcept{different-from}@<basic_const_iterator> I>
-  friend constexpr bool operator<=(const basic_const_iterator& x, const I& y)
+  constexpr bool operator<=(const I& y) const
     requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
 template<@\exposconcept{different-from}@<basic_const_iterator> I>
-  friend constexpr bool operator>=(const basic_const_iterator& x, const I& y)
+  constexpr bool operator>=(const I& y) const
     requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I>;
 template<@\exposconcept{different-from}@<basic_const_iterator> I>
-  friend constexpr auto operator<=>(const basic_const_iterator& x, const I& y)
+  constexpr auto operator<=>(const I& y) const
     requires @\libconcept{random_access_iterator}@<Iterator> && @\libconcept{totally_ordered_with}@<Iterator, I> &&
              @\libconcept{three_way_comparable_with}@<Iterator, I>;
 \end{itemdecl}
@@ -4615,8 +4646,8 @@ template<@\exposconcept{different-from}@<basic_const_iterator> I>
 Let \tcode{\placeholder{op}} be the operator.
 
 \pnum
-\returns
-Equivalent to: \tcode{return x.\exposid{current_} \placeholder{op} y;}
+\effects
+Equivalent to: \tcode{return \exposid{current_} \placeholder{op} y;}
 \end{itemdescr}
 
 \indexlibrarymember{operator<}{basic_const_iterator}%
@@ -4675,19 +4706,19 @@ Equivalent to: \tcode{return basic_const_iterator(i.\exposid{current_} - n);}
 \indexlibrarymember{operator-}{basic_const_iterator}%
 \begin{itemdecl}
 template<@\libconcept{sized_sentinel_for}@<Iterator> S>
-  friend constexpr difference_type operator-(const basic_const_iterator& x, const S& y);
+  constexpr difference_type operator-(const S& y) const;
 \end{itemdecl}
 
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{return x.\exposid{current_} - y;}
+Equivalent to: \tcode{return \exposid{current_} - y;}
 \end{itemdescr}
 
 \indexlibrarymember{operator-}{basic_const_iterator}%
 \begin{itemdecl}
-template<@\libconcept{sized_sentinel_for}@<Iterator> S>
-  requires @\exposconcept{different-from}@<S, basic_const_iterator>
+template<@\exposconcept{not-a-const-iterator}@ S>
+  requires @\libconcept{sized_sentinel_for}@<S, Iterator>
   friend constexpr difference_type operator-(const S& x, const basic_const_iterator& y);
 \end{itemdecl}
 
@@ -7190,8 +7221,6 @@ headers are included:
 \libheaderrefx{unordered_map}{unord.map.syn},
 \libheaderrefx{unordered_set}{unord.set.syn}, and
 \libheaderref{vector}.
-Each of these templates
-is a designated customization point\iref{namespace.std}.
 
 \indexlibrary{\idxcode{begin(C\&)}}%
 \begin{itemdecl}

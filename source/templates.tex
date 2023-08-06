@@ -172,6 +172,13 @@ A local class, a local or block variable, or a friend function defined in a
 templated entity is a templated entity.
 \end{note}
 
+A \defnadj{templated}{function} is
+a function template or a function that is templated.
+A \defnadj{templated}{class} is
+a class template or a class that is templated.
+A \defnadj{templated}{variable} is
+a variable template or a variable that is templated.
+
 \pnum
 A \grammarterm{template-declaration} is written
 in terms of its template parameters.
@@ -395,7 +402,7 @@ A \defnadj{structural}{type} is one of the following:
 all base classes and non-static data members are public and non-mutable and
 \item
 the types of all bases classes and non-static data members are
-structural types or (possibly multi-dimensional) array thereof.
+structural types or (possibly multidimensional) array thereof.
 \end{itemize}
 \end{itemize}
 
@@ -2406,7 +2413,10 @@ S x{A()};           // \tcode{x} is of type \tcode{S<short, int>}
 The same restrictions apply
 to the \grammarterm{parameter-declaration-clause}
 of a deduction guide
-as in a function declaration\iref{dcl.fct}.
+as in a function declaration\iref{dcl.fct},
+except that a generic parameter type placeholder\iref{dcl.spec.auto}
+shall not appear in the \grammarterm{parameter-declaration-clause} of
+a deduction guide.
 The \grammarterm{simple-template-id}
 shall name a class template specialization.
 The \grammarterm{template-name}
@@ -2824,7 +2834,7 @@ the element is an \grammarterm{id-expression}
 designating the variable introduced by
 the $i^\text{th}$ \grammarterm{init-capture}
 that resulted from instantiation of
-the \grammarterm{init-capture} pack.
+the \grammarterm{init-capture} pack declaration.
 \end{itemize}
 When $N$ is zero, the instantiation of a pack expansion
 does not alter the syntactic interpretation of the enclosing construct,
@@ -2836,11 +2846,15 @@ The instantiation of a \tcode{sizeof...} expression\iref{expr.sizeof} produces
 an integral constant with value $N$.
 
 \pnum
+The instantiation of an \grammarterm{alignment-specifier} with an ellipsis
+produces $\tcode{E}_1$ $\tcode{E}_2$ $\dotsc$ $\tcode{E}_N$.
+
+\pnum
 The instantiation of a \grammarterm{fold-expression}\iref{expr.prim.fold} produces:
 \begin{itemize}
 \item
 % Note: "\space" used below because " " inside tcode adds too much whitespace;
-% one could optionally use mathfont inside tcode, e.g. "\tcode{($ $}".
+% one could optionally use mathfont inside tcode, e.g., "\tcode{($ $}".
 \tcode{(}\space
 \tcode{((}$\mathtt{E}_1$
            \placeholder{op} $\mathtt{E}_2$\tcode{)}
@@ -4429,7 +4443,7 @@ int main() {
 \pnum
 \indextext{checking!syntax}%
 \indextext{checking!point of error}%
-The validity of a template may be checked prior to any instantiation.
+The validity of a templated entity may be checked prior to any instantiation.
 \begin{note}
 Knowing which names are type names allows the syntax of every template
 to be checked in this way.
@@ -4437,9 +4451,15 @@ to be checked in this way.
 The program is ill-formed, no diagnostic required, if:
 \begin{itemize}
 \item
-no valid specialization can be generated for a template
-or a substatement of a constexpr if statement\iref{stmt.if} within a template
-and the template is not instantiated, or
+no valid specialization,
+ignoring \grammarterm{static_assert-declaration}{s} that fail\iref{dcl.pre},
+can be generated for a templated entity
+or a substatement of a constexpr if statement\iref{stmt.if}
+within a templated entity
+and the innermost enclosing template is not instantiated, or
+\item
+no specialization of an alias template\iref{temp.alias} is valid and
+no specialization of the alias template is named in the program, or
 \item
 any \grammarterm{constraint-expression} in the program, introduced or otherwise,
 has (in its normal form) an atomic constraint $A$ where
@@ -4449,16 +4469,18 @@ no satisfaction check of $A$ is performed, or
 every valid specialization of a variadic template requires an empty template
 parameter pack, or
 \item
-a hypothetical instantiation of a template
+a hypothetical instantiation of a templated entity
 immediately following its definition
 would be ill-formed
-due to a construct that does not depend on a template parameter, or
+due to a construct
+(other than a \grammarterm{static_assert-declaration} that fails)
+that does not depend on a template parameter, or
 \item
 the interpretation of such a construct
 in the hypothetical instantiation
 is different from
 the interpretation of the corresponding construct
-in any actual instantiation of the template.
+in any actual instantiation of the templated entity.
 \end{itemize}
 \begin{note}
 This can happen in situations including the following:
@@ -5991,7 +6013,7 @@ in a constructor definition or an aggregate initialization
 causes specializations in the default member initializer to be instantiated.
 
 \pnum
-If a function template
+If a templated function
 \tcode{f}
 is called in a way that requires a default argument to be used,
 the dependent names are looked up, the semantics constraints are checked,
@@ -6436,7 +6458,7 @@ shall be reachable from the definition of any member of it.
 The definition of an explicitly specialized class is unrelated to the
 definition of a generated specialization.
 That is, its members need
-not have the same names, types, etc. as the members of a generated
+not have the same names, types, etc.\ as the members of a generated
 specialization.
 Members of an explicitly specialized
 class template are defined in the same manner as members of normal classes, and
@@ -6604,7 +6626,7 @@ of a template specialization is not an explicit specialization\iref{temp.fct}.
 
 \pnum
 Whether an explicit specialization of a function or variable template
-is inline, constexpr, or an immediate function
+is inline, constexpr, constinit, or consteval
 is determined by the explicit specialization and
 is independent of those properties of the template.
 Similarly,
@@ -7702,7 +7724,7 @@ and
 \tcode{A},
 and the deduction is done as
 described in~\ref{temp.deduct.type}.
-Otherwise, deduction is performed with empty sets of types P and A.
+Otherwise, deduction is performed with empty sets of types \tcode{P} and \tcode{A}.
 
 \pnum
 A placeholder type\iref{dcl.spec.auto} in the return type of a

@@ -320,7 +320,7 @@ In the definition of an object,
 the type of that object shall not be
 an incomplete type\iref{term.incomplete.type},
 an abstract class type\iref{class.abstract}, or
-a (possibly multi-dimensional) array thereof.
+a (possibly multidimensional) array thereof.
 
 \rSec1[basic.def.odr]{One-definition rule}%
 \indextext{object!definition}%
@@ -680,6 +680,11 @@ const objects with static or thread storage duration
 shall be constant-initialized if
 the object is constant-initialized in any such definition.
 
+\item In each such definition,
+corresponding manifestly constant-evaluated expressions
+that are not value-dependent
+shall have the same value\iref{expr.const,temp.dep.constexpr}.
+
 \item In each such definition, the overloaded operators referred
 to, the implicit calls to conversion functions, constructors, operator
 new functions and operator delete functions, shall refer to the same
@@ -693,7 +698,12 @@ is treated as if its token sequence
 were present in the definition of \tcode{D};
 that is, the default argument or default template argument
 is subject to the requirements described in this paragraph (recursively).
+\end{itemize}
 
+\pnum
+For the purposes of the preceding requirements:
+
+\begin{itemize}
 \item If \tcode{D} is a class with an implicitly-declared
 constructor\iref{class.default.ctor,class.copy.ctor},
 it is as if the constructor was
@@ -733,14 +743,16 @@ it is as if the operator was
 implicitly defined in every translation unit where it is odr-used, and the
 implicit definition in every translation unit shall call the same
 comparison operators for each subobject of \tcode{D}.
+
+\item
+If \tcode{D} is a template and is defined in more than one
+translation unit, the requirements
+apply both to names from the template's enclosing scope used in the
+template definition, and also to dependent names at
+the point of instantiation\iref{temp.dep}.
 \end{itemize}
 
 \pnum
-If \tcode{D} is a template and is defined in more than one
-translation unit, then the preceding requirements
-shall apply both to names from the template's enclosing scope used in the
-template definition, and also to dependent names at
-the point of instantiation\iref{temp.dep}.
 These requirements also apply to corresponding entities
 defined within each definition of \tcode{D}
 (including the closure types of \grammarterm{lambda-expression}{s},
@@ -926,7 +938,11 @@ enumerator,
 function, or
 function template, or
 \item
-each declares a function or function template, except when
+each declares a function or function template
+and they do not declare corresponding overloads.
+\end{itemize}
+Two function or function template declarations declare
+\defn{corresponding overloads} if:
 \begin{itemize}
 \item
 both declare functions with the same non-object-parameter-type-list,
@@ -942,7 +958,6 @@ they have corresponding object parameters, or
 both declare function templates with corresponding signatures and equivalent
 \grammarterm{template-head}s and
 trailing \grammarterm{requires-clause}s (if any).
-\end{itemize}
 \end{itemize}
 \begin{note}
 Declarations can correspond even if neither binds a name.
@@ -983,17 +998,35 @@ struct X {
 \end{example}
 
 \pnum
+A declaration is \defnx{name-independent}{declaration!name-independent}
+if its name is \tcode{_} (\unicode{005f}{low line}) and it declares
+a variable with automatic storage duration,
+a structured binding not inhabiting a namespace scope,
+the variable introduced by an \grammarterm{init-capture}, or
+a non-static data member.
+
+\recommended
+Implementations should not emit a warning
+that a name-independent declaration is used or unused.
+
+\pnum
 \indextext{declaration!potentially conflict}%
 Two declarations \defn{potentially conflict}
 if they correspond and
 cause their shared name to denote different entities\iref{basic.link}.
 The program is ill-formed
-if, in any scope, a name is bound to two declarations
-that potentially conflict and one precedes the other\iref{basic.lookup}.
+if, in any scope, a name is bound to two declarations $A$ and $B$
+that potentially conflict and $A$ precedes $B$\iref{basic.lookup},
+unless $B$ is name-independent.
+\begin{note}
+An \grammarterm{id-expression} that names a unique name-independent declaration
+is usable until an additional declaration of the same name
+is introduced in the same scope\iref{basic.lookup.general}.
+\end{note}
 \begin{note}
 Overload resolution can consider potentially conflicting declarations
 found in multiple scopes
-(e.g. via \grammarterm{using-directive}s or for operator functions),
+(e.g., via \grammarterm{using-directive}s or for operator functions),
 in which case it is often ambiguous.
 \end{note}
 \begin{example}
@@ -1010,6 +1043,18 @@ namespace B = A;        // OK, no effect
 namespace B = B;        // OK, no effect
 namespace A = B;        // OK, no effect
 namespace B {}          // error: different entity for \tcode{B}
+
+void g() {
+  int _;
+  _ = 0;                // OK
+  int _;                // OK, name-independent declaration
+  _ = 0;                // error: two non-function declarations in the lookup set
+}
+void h () {
+  int _;                // \#1
+  _ ++;                 // OK
+  static int _;         // error: conflicts with \#1 because static variables are not name-independent
+}
 \end{codeblock}
 \end{example}
 
@@ -1083,10 +1128,12 @@ declares a block-scope array of two integers.
 The locus of a \grammarterm{class-specifier} is immediately after
 the \grammarterm{identifier} or \grammarterm{simple-template-id} (if any)
 in its \grammarterm{class-head}\iref{class.pre}.
-The locus of
-an \grammarterm{enum-specifier} or \grammarterm{opaque-enum-declaration}
-is immediately after the \grammarterm{identifier} (if any)
-in it\iref{dcl.enum}.
+The locus of an \grammarterm{enum-specifier}
+is immediately after
+its \grammarterm{enum-head};
+the locus of an \grammarterm{opaque-enum-declaration}
+is immediately after it\iref{dcl.enum}.
+%FIXME: What's "it" below? What's "it" above?
 The locus of an \grammarterm{alias-declaration} is immediately after it.
 
 \pnum
@@ -1229,7 +1276,9 @@ int j = i;          // \tcode{j = 42}
 \end{example}
 
 \pnum
-If a declaration whose target scope is the block scope $S$ of a
+If a declaration
+that is not a name-independent declaration and
+whose target scope is the block scope $S$ of a
 \begin{itemize}
 \item
 \grammarterm{compound-statement} of a \grammarterm{lambda-expression},
@@ -1512,18 +1561,18 @@ instead of the type declaration.
 
 \pnum
 \indextext{scope!search}%
-A \defn{search} in a scope $X$ for a name $N$ from a program point $P$
-is a single search in $X$ for $N$ from $P$
+A \defn{search} in a scope $X$ for a name $M$ from a program point $P$
+is a single search in $X$ for $M$ from $P$
 unless $X$ is the scope of a class or class template $T$, in which case the
 following steps define the result of the search.
 \begin{note}
 The result differs only
-if $N$ is a \grammarterm{conversion-function-id} or
+if $M$ is a \grammarterm{conversion-function-id} or
 if the single search would find nothing.
 \end{note}
 
 \pnum
-The \defn{lookup set} for $N$ in $C$, called $S(N,C)$,
+The \defn{lookup set} for a name $N$ in a class or class template $C$, called $S(N,C)$,
 consists of two component sets:
 the \term{declaration set}, a set of members named $N$; and
 the \term{subobject set},
@@ -1548,10 +1597,10 @@ Calculate the lookup set for $N$
 in each direct non-dependent\iref{temp.dep.type} base class subobject $B_i$, and
 merge each such lookup set $S(N,B_i)$ in turn into $S(N,C)$.
 \begin{note}
-If $T$ is incomplete,
+If $C$ is incomplete,
 only base classes whose \grammarterm{base-specifier} appears before $P$
 are considered.
-If $T$ is an instantiated class, its base classes are not dependent.
+If $C$ is an instantiated class, its base classes are not dependent.
 \end{note}
 
 \pnum
@@ -1577,9 +1626,9 @@ declarations and the union of the subobject sets.
 \end{itemize}
 
 \pnum
-The result of the search is the declaration set of $S(N,T)$.
+The result of the search is the declaration set of $S(M,T)$.
 If it is an invalid set, the program is ill-formed.
-If it differs from the result of a search in $T$ for $N$
+If it differs from the result of a search in $T$ for $M$
 in a complete-class context\iref{class.mem} of $T$,
 the program is ill-formed, no diagnostic required.
 \begin{example}
@@ -1602,7 +1651,7 @@ $S(\tcode{x},\tcode{D})$ is discarded in the first merge step.
 \end{example}
 
 \pnum
-If $N$ is a non-dependent \grammarterm{conversion-function-id},
+If $M$ is a non-dependent \grammarterm{conversion-function-id},
 conversion function templates that are members of $T$ are considered.
 For each such template $F$, the lookup set $S(t,T)$ is constructed,
 considering a function template declaration to have the name $t$
@@ -1611,7 +1660,7 @@ The members of the declaration set of each such lookup set,
 which shall not be an invalid set, are included in the result.
 \begin{note}
 Overload resolution will discard those
-that cannot convert to the type specified by $N$\iref{temp.over}.
+that cannot convert to the type specified by $M$\iref{temp.over}.
 \end{note}
 
 \pnum
@@ -2622,8 +2671,11 @@ has internal linkage if it is the name of
 \item
   a non-template variable of non-volatile const-qualified type, unless
   \begin{itemize}
+  \item it is declared in the purview of a module interface unit
+    (outside the \grammarterm{private-module-fragment}, if any) or
+    module partition, or
   \item it is explicitly declared \keyword{extern}, or
-  \item it is inline or exported, or
+  \item it is inline, or
   \item it was previously declared and the prior declaration did
   not have internal linkage; or
   \end{itemize}
@@ -2718,6 +2770,7 @@ if, considering declarations of unnamed types to introduce their names
 for linkage purposes, if any\iref{dcl.typedef,dcl.enum},
 they correspond\iref{basic.scope.scope},
 have the same target scope that is not a function or template parameter scope,
+neither is a name-independent declaration,
 and either
 \begin{itemize}
 \item
@@ -3329,7 +3382,7 @@ X *make_x() {
 
 \pnum
 An operation that begins the lifetime of
-an array of \tcode{char}, \tcode{unsigned char}, or \tcode{std::byte}
+an array of \tcode{unsigned char} or \tcode{std::byte}
 implicitly creates objects within the region of storage occupied by the array.
 \begin{note}
 The array object provides storage for these objects.
@@ -3340,7 +3393,7 @@ implicitly creates objects in the returned region of storage and
 returns a pointer to a suitable created object.
 \begin{note}
 Some functions in the \Cpp{} standard library implicitly create objects%
-\iref{obj.lifetime,allocator.traits.members,c.malloc,cstring.syn,bit.cast}.
+\iref{obj.lifetime,c.malloc,mem.res.public,bit.cast,cstring.syn}.
 \end{note}
 \indextext{object model|)}
 
@@ -3352,7 +3405,7 @@ The \defn{lifetime} of an object or reference is a runtime property of the
 object or reference.
 A variable is said to have \defnadj{vacuous}{initialization}
 if it is default-initialized and,
-if it is of class type or a (possibly multi-dimensional) array thereof,
+if it is of class type or a (possibly multidimensional) array thereof,
 that class type has a trivial default constructor.
 The lifetime of an object of type \tcode{T} begins when:
 \begin{itemize}
@@ -3374,6 +3427,21 @@ The lifetime of an object \placeholder{o} of type \tcode{T} ends when:
 \item the storage which the object occupies is released,
 or is reused by an object that is not nested within \placeholder{o}\iref{intro.object}.
 \end{itemize}
+When evaluating a \grammarterm{new-expression},
+storage is considered reused after it is returned from the allocation function,
+but before the evaluation of the \grammarterm{new-initializer}\iref{expr.new}.
+\begin{example}
+\begin{codeblock}
+struct S {
+  int m;
+};
+
+void f() {
+  S x{1};
+  new(&x) S(x.m);   // undefined behavior
+}
+\end{codeblock}
+\end{example}
 
 \pnum
 \indextext{reference lifetime}%
@@ -3407,8 +3475,11 @@ destructor, by reusing or releasing the storage as described above.
 A \grammarterm{delete-expression}\iref{expr.delete} invokes the destructor
 prior to releasing the storage.
 \end{note}
-In this case, the destructor is not implicitly invoked and any program that
-depends on the side effects produced by the destructor has undefined behavior.
+In this case, the destructor is not implicitly invoked.
+\begin{note}
+The correct behavior of a program often depends on
+the destructor being invoked for each object of class type.
+\end{note}
 
 \pnum
 Before the lifetime of an object has started but after the storage which
@@ -3975,7 +4046,7 @@ An allocation function that fails to allocate storage can invoke the
 currently installed new-handler function\iref{new.handler}, if any.
 \begin{note}
 \indextext{\idxcode{new_handler}}%
-A program-supplied allocation function can obtain the address of the
+A program-supplied allocation function can obtain the
 currently installed \tcode{new_handler} using the
 \tcode{std::get_new_handler} function\iref{get.new.handler}.
 \end{note}
@@ -4090,6 +4161,9 @@ integer value representing the number of bytes between successive addresses
 at which a given object can be allocated. An object type imposes an alignment
 requirement on every object of that type; stricter alignment can be requested
 using the alignment specifier\iref{dcl.align}.
+Attempting to create an object\iref{intro.object} in storage that
+does not meet the alignment requirements of the object's type
+is undefined behavior.
 
 \pnum
 A \defnadj{fundamental}{alignment} is represented by an alignment
@@ -4624,15 +4698,28 @@ std::memcpy(t1p, t2p, sizeof(T));
 \pnum
 \label{term.object.representation}%
 The \defnx{object representation}{representation!object}
-of an object of type \tcode{T} is the
+of a complete object type \tcode{T} is the
 sequence of \placeholder{N} \tcode{\keyword{unsigned} \keyword{char}} objects taken up
-by the object of type \tcode{T}, where \placeholder{N} equals
+by a non-bit-field complete object of type \tcode{T},
+where \placeholder{N} equals
 \tcode{\keyword{sizeof}(T)}.
 The \defnx{value representation}{representation!value}
-of an object of type \tcode{T} is the set of bits
+of a type \tcode{T} is the set of bits
+in the object representation of \tcode{T}
 that participate in representing a value of type \tcode{T}.
+The object and value representation of
+a non-bit-field complete object of type \tcode{T} are
+the bytes and bits, respectively, of
+the object corresponding to the object and value representation of its type.
+The object representation of a bit-field object is
+the sequence of \placeholder{N} bits taken up by the object,
+where \placeholder{N} is the width of the bit-field\iref{class.bit}.
+The value representation of a bit-field object is
+the set of bits in the object representation that
+participate in representing its value.
 \label{term.padding.bits}%
-Bits in the object representation that are not part of the value representation
+Bits in the object representation of a type or object that are
+not part of the value representation
 are \defn{padding bits}.
 For trivially copyable types, the value representation is
 a set of bits in the object representation that determines a
@@ -4883,7 +4970,7 @@ the largest value of the corresponding unsigned type.
 \end{floattable}
 
 \pnum
-The width of each signed integer type
+The width of each standard signed integer type
 shall not be less than the values specified in \tref{basic.fundamental.width}.
 The value representation of a signed or unsigned integer type
 comprises $N$ bits, where N is the respective width.
@@ -5044,6 +5131,22 @@ their interactions with floating-point types.
 Except as specified in \ref{basic.extended.fp},
 the object and value representations and accuracy of operations
 of floating-point types are \impldef{representation of floating-point types}.
+
+\pnum
+The minimum range of representable values for a floating-point type is
+the most negative finite floating-point number representable
+in that type through
+the most positive finite floating-point number representable in that type.
+In addition, if negative infinity is representable in a type,
+the range of that type is extended to all negative real numbers;
+likewise, if positive infinity is representable in a type,
+the range of that type is extended to all positive real numbers.
+\begin{note}
+Since negative and positive infinity are representable
+in ISO/IEC/IEEE 60559 formats,
+all real numbers lie within the range of representable values of
+a floating-point type adhering to ISO/IEC/IEEE 60559.
+\end{note}
 
 \pnum
 Integral and floating-point types are collectively
@@ -5252,7 +5355,7 @@ class \tcode{X} is called a ``pointer to \tcode{X}''.
 Except for pointers to static members, text referring to ``pointers''
 does not apply to pointers to members. Pointers to incomplete types are
 allowed although there are restrictions on what can be done with
-them\iref{basic.align}.
+them\iref{basic.types.general}.
 \indextext{address}%
 Every value of pointer type is one of the following:
 \begin{itemize}
@@ -5703,7 +5806,7 @@ void f() {
   if (S(3).v())                 // full-expression includes lvalue-to-rvalue and \tcode{int} to \tcode{bool} conversions,
                                 // performed before temporary is deleted at end of full-expression
   { }
-  bool b = noexcept(S());       // exception specification of destructor of \tcode{S} considered for \keyword{noexcept}
+  bool b = noexcept(S(4));      // exception specification of destructor of \tcode{S} considered for \keyword{noexcept}
 
   // full-expression is destruction of \tcode{s2} at end of block
 }

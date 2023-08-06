@@ -154,15 +154,17 @@ to use such transformations and constructions.
 \indextext{function!overload resolution and}%
 The set of candidate functions can contain both member and non-member
 functions to be resolved against the same argument list.
-So that argument and parameter lists are comparable within this
-heterogeneous set, a member function that does not have an explicit object parameter is considered to have an
-extra first parameter, called the
-\defn{implicit object parameter},
-which represents the object for which the member function has been
-called.
-For the purposes of overload resolution, both static and
-non-static member functions have an object parameter,
-but constructors do not.
+If a member function is
+\begin{itemize}
+\item
+an implicit object member function that is not a constructor, or
+\item
+a static member function and
+the argument list includes an implied object argument,
+\end{itemize}
+it is considered to have an extra first parameter,
+called the \defnadj{implicit}{object parameter},
+which represents the object for which the member function has been called.
 
 \pnum
 Similarly, when appropriate, the context can construct an
@@ -367,7 +369,11 @@ resolution is applied as specified in \ref{over.call.object}.
 \pnum
 If the \grammarterm{postfix-expression} is the address of an overload set,
 overload resolution is applied using that set as described above.
-If the function selected by overload resolution is a non-static member function,
+\begin{note}
+No implied object argument is added in this case.
+\end{note}
+If the function selected by overload resolution is
+an implicit object member function,
 the program is ill-formed.
 \begin{note}
 The resolution of the address of an
@@ -443,15 +449,16 @@ In unqualified function calls, the function is named by a
 The function declarations found by name lookup\iref{basic.lookup} constitute the
 set of candidate functions.
 Because of the rules for name lookup, the set of candidate functions
-consists (1) entirely of non-member functions or (2) entirely of
+consists either entirely of non-member functions or entirely of
 member functions of some class
 \tcode{T}.
-In case (1),
+In the former case or
+if the \grammarterm{primary-expression} is the address of an overload set,
 the argument list is
 the same as the
 \grammarterm{expression-list}
 in the call.
-In case (2), the argument list is the
+Otherwise, the argument list is the
 \grammarterm{expression-list}
 in the call augmented by the addition of an implied object
 argument as in a qualified function call.
@@ -483,6 +490,19 @@ struct C {
   void a();
   void b() {
     a();                // OK, \tcode{(*this).a()}
+  }
+
+  void c(this const C&);    // \#1
+  void c() &;               // \#2
+  static void c(int = 0);   // \#3
+
+  void d() {
+    c();                // error: ambiguous between \#2 and \#3
+    (C::c)();           // error: as above
+    (&(C::c))();        // error: cannot resolve address of overloaded \tcode{this->C::c}\iref{over.over}
+    (&C::c)(C{});       // selects \#1
+    (&C::c)(*this);     // error: selects \#2, and is ill-formed\iref{over.match.call.general}
+    (&C::c)();          // selects \#3
   }
 
   void f(this const C&);
@@ -723,6 +743,7 @@ accept operand types to which the given operand or
 operands can be converted according to \ref{over.best.ics}, and
 \item
 do not have the same parameter-type-list as any non-member candidate
+or rewritten non-member candidate
 that is not a function template specialization.
 \end{itemize}
 
@@ -812,15 +833,8 @@ bool d1 = 0 == D();             // OK, calls reversed \#4; \#5 does not forbid \
 \end{example}
 
 \pnum
-For the built-in assignment operators, conversions of the left
-operand are restricted as follows:
-\begin{itemize}
-\item
-no temporaries are introduced to hold the left operand, and
-\item
-no user-defined conversions are applied to the left operand to achieve
-a type match with the left-most parameter of a built-in candidate.
-\end{itemize}
+For the first parameter of the built-in assignment operators,
+only standard conversion sequences\iref{over.ics.scs} are considered.
 
 \pnum
 For all other operators, no such restrictions apply.
@@ -1240,8 +1254,12 @@ that would be initialized by $x_i$\iref{dcl.init.aggr} if
 \begin{itemize}
 \item
 brace elision is not considered for any aggregate element
-that has a dependent non-array type or
-an array type with a value-dependent bound, and
+that has
+\begin{itemize}
+\item a dependent non-array type,
+\item an array type with a value-dependent bound, or
+\item an array type with a dependent array element type and $x_i$ is a string literal; and
+\end{itemize}
 \item
 each non-trailing aggregate element that is a pack expansion
 is assumed to correspond to no elements of the initializer list, and
@@ -1257,8 +1275,13 @@ where
 \begin{itemize}
 \item
 if $e_i$ is of array type and
-$x_i$ is a \grammarterm{braced-init-list} or \grammarterm{string-literal},
+$x_i$ is a \grammarterm{braced-init-list},
 $\tcode{T}_i$ is an rvalue reference to the declared type of $e_i$, and
+\item
+if $e_i$ is of array type and
+$x_i$ is a \grammarterm{string-literal},
+$\tcode{T}_i$ is an lvalue reference to
+the const-qualified declared type of $e_i$, and
 \item
 otherwise, $\tcode{T}_i$ is the declared type of $e_i$,
 \end{itemize}
@@ -1329,6 +1352,23 @@ template <typename T, typename U> struct G : F<U, T, int> {
 }
 
 G g(true, 'a', 1);  // OK, deduces \tcode{G<char, bool>}
+
+template<class T, std::size_t N>
+struct H {
+  T array[N];
+};
+template<class T, std::size_t N>
+struct I {
+  volatile T array[N];
+};
+template<std::size_t N>
+struct J {
+  unsigned char array[N];
+};
+
+H h = { "abc" };    // OK, deduces \tcode{H<char, 4>} (not \tcode{T = const char})
+I i = { "def" };    // OK, deduces \tcode{I<char, 4>}
+J j = { "ghi" };    // error: cannot bind reference to array of \tcode{unsigned char} to array of \tcode{char} in deduction
 \end{codeblock}
 \end{example}
 
@@ -1351,6 +1391,8 @@ from the \grammarterm{defining-type-id} of \tcode{A}
 according to the process in \ref{temp.deduct.type}
 with the exception that deduction does not fail
 if not all template arguments are deduced.
+If deduction fails for another reason,
+proceed with an empty set of deduced template arguments.
 Let \tcode{g} denote the result of substituting
 these deductions into \tcode{f}.
 If substitution succeeds,
@@ -2314,7 +2356,8 @@ When an argument is an initializer list\iref{dcl.init.list}, it is not an
 expression and special rules apply for converting it to a parameter type.
 
 \pnum
-If the initializer list is a \grammarterm{designated-initializer-list},
+If the initializer list is a \grammarterm{designated-initializer-list}
+and the parameter is not a reference,
 a conversion is only possible if
 the parameter has an aggregate type
 that can be initialized from the initializer list
@@ -3893,18 +3936,20 @@ functions of the form
 
 \begin{bnf}
 \nontermdef{literal-operator-id}\br
-    \keyword{operator} string-literal identifier\br
+    \keyword{operator} unevaluated-string identifier\br
     \keyword{operator} user-defined-string-literal
 \end{bnf}
 
 \pnum
-The \grammarterm{string-literal} or \grammarterm{user-defined-string-literal}
-in a \grammarterm{literal-operator-id} shall have no
-\grammarterm{encoding-prefix} and shall contain no characters other than the
-implicit terminating \tcode{'\textbackslash 0'}.
+The \grammarterm{user-defined-string-literal}
+in a \grammarterm{literal-operator-id}
+shall have no \grammarterm{encoding-prefix}.
+The \grammarterm{unevaluated-string} or
+\grammarterm{user-defined-string-literal} shall be empty.
 The \grammarterm{ud-suffix} of the \grammarterm{user-defined-string-literal} or
 the \grammarterm{identifier} in a \grammarterm{literal-operator-id} is called a
 \defnx{literal suffix identifier}{literal!suffix identifier}.
+The first form of \grammarterm{literal-operator-id} is deprecated\iref{depr.lit}.
 Some literal suffix identifiers are reserved for future standardization;
 see~\ref{usrlit.suffix}.  A declaration whose \grammarterm{literal-operator-id} uses
 such a literal suffix identifier is ill-formed, no diagnostic required.
@@ -3979,19 +4024,19 @@ taken, etc.
 \pnum
 \begin{example}
 \begin{codeblock}
-void operator "" _km(long double);                  // OK
-string operator "" _i18n(const char*, std::size_t); // OK
-template <char...> double operator "" _\u03C0();    // OK, UCN for lowercase pi
+void operator ""_km(long double);                   // OK
+string operator "" _i18n(const char*, std::size_t); // OK, deprecated
+template <char...> double operator ""_\u03C0();     // OK, UCN for lowercase pi
 float operator ""_e(const char*);                   // OK
 float operator ""E(const char*);                    // ill-formed, no diagnostic required:
                                                     // reserved literal suffix\iref{usrlit.suffix,lex.ext}
 double operator""_Bq(long double);                  // OK, does not use the reserved \grammarterm{identifier} \tcode{_Bq}\iref{lex.name}
 double operator"" _Bq(long double);                 // ill-formed, no diagnostic required:
                                                     // uses the reserved \grammarterm{identifier} \tcode{_Bq}\iref{lex.name}
-float operator " " B(const char*);                  // error: non-empty \grammarterm{string-literal}
-string operator "" 5X(const char*, std::size_t);    // error: invalid literal suffix identifier
-double operator "" _miles(double);                  // error: invalid \grammarterm{parameter-declaration-clause}
-template <char...> int operator "" _j(const char*); // error: invalid \grammarterm{parameter-declaration-clause}
-extern "C" void operator "" _m(long double);        // error: C language linkage
+float operator " "B(const char*);                   // error: non-empty \grammarterm{string-literal}
+string operator ""5X(const char*, std::size_t);     // error: invalid literal suffix identifier
+double operator ""_miles(double);                   // error: invalid \grammarterm{parameter-declaration-clause}
+template <char...> int operator ""_j(const char*);  // error: invalid \grammarterm{parameter-declaration-clause}
+extern "C" void operator ""_m(long double);         // error: C language linkage
 \end{codeblock}
 \end{example}

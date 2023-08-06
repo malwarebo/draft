@@ -18,20 +18,25 @@ jobs:
       matrix:
         cfg:
           - { name: 'Linux', os: 'ubuntu-22.04' }
-          - { name: 'MacOS', os: 'macos-12' }
+          - { name: 'MacOS', os: 'macos-13' }
 
     steps:
       - name: checkout
         uses: actions/checkout@v3
 
       - name: install GNU tools
-        if: matrix.cfg.os == 'macos-12'
+        if: matrix.cfg.os == 'macos-13'
         run: |
           brew install gnu-sed
           echo "/usr/local/opt/gnu-sed/libexec/gnubin" >> ${GITHUB_PATH}
 
       - name: check-source.sh
         run: ../tools/check-source.sh
+
+      - name: update brew
+        if: matrix.cfg.os == 'macos-13'
+        run: |
+          brew update
 
       - name: update-apt-cache
         if: matrix.cfg.os == 'ubuntu-22.04'
@@ -41,8 +46,8 @@ jobs:
         if: matrix.cfg.os == 'ubuntu-22.04'
         run: sudo apt-get install latexmk texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended lmodern
 
-      - name: install (MacOS, Part 1/2)
-        if: matrix.cfg.os == 'macos-12'
+      - name: install (MacOS)
+        if: matrix.cfg.os == 'macos-13'
         run: |
           brew install basictex
           eval "$(/usr/libexec/path_helper)"
@@ -50,15 +55,20 @@ jobs:
           sudo tlmgr update --self
           sudo tlmgr install latexmk isodate substr relsize ulem fixme rsfs extract layouts enumitem l3packages l3kernel imakeidx splitindex xstring
 
-      - name: make
+      - name: make (Linux)
+        if: matrix.cfg.os == 'ubuntu-22.04'
         run: make quiet
+
+      - name: make (MacOS)
+        if: matrix.cfg.os == 'macos-13'
+        run: make full
 
       - name: check-output.sh
         run: ../tools/check-output.sh
 
       - name: upload PDF
         if: matrix.cfg.os == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: draft-snapshot
           path: source/std.pdf

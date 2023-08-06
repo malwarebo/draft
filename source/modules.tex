@@ -382,9 +382,10 @@ are exported and subject to the rules of exported declarations.
 \begin{example}
 \begin{codeblock}
 export module M;
+int g;
 export namespace N {
   int x;                        // OK
-  static_assert(1 == 1);        // error: does not declare a name
+  using ::g;                    // error: \tcode{::g} has module linkage
 }
 \end{codeblock}
 \end{example}
@@ -447,6 +448,8 @@ phases 1 to 7 of translation\iref{lex.phases}
 to the source file or header nominated by \tcode{H},
 which shall not contain a \grammarterm{module-declaration}.
 \begin{note}
+A header unit is a separate translation unit with
+an independent set of defined macros.
 All declarations within a header unit are implicitly
 exported\iref{module.interface},
 and are attached to the global module\iref{module.unit}.
@@ -512,6 +515,13 @@ with the lookup rules for imported names\iref{basic.lookup}.
 \end{footnote}
 These rules can in turn lead to the importation of yet more
 translation units.
+\begin{note}
+Such indirect importation does not make macros available,
+because a translation unit is
+a sequence of tokens in translation phase 7\iref{lex.phases}.
+Macros can be made available by directly importing header units
+as described in \ref{cpp.import}.
+\end{note}
 
 \pnum
 A module implementation unit shall not be exported.

@@ -82,8 +82,8 @@
 \begin{bnf}\obeyspaces
 \nontermdef{elif-group}\br
     \terminal{\# elif    } constant-expression new-line \opt{group}\br
-    \terminal{\# elifdef } constant-expression new-line \opt{group}\br
-    \terminal{\# elifndef} constant-expression new-line \opt{group}
+    \terminal{\# elifdef } identifier new-line \opt{group}\br
+    \terminal{\# elifndef} identifier new-line \opt{group}
 \end{bnf}
 
 \begin{bnf}\obeyspaces
@@ -375,8 +375,10 @@ do not match the form of an \grammarterm{attribute-token}.
 
 \pnum
 For an attribute specified in this document,
-the value of the \grammarterm{has-attribute-expression}
-is given by \tref{cpp.cond.ha}.
+it is \impldef{value of \grammarterm{has-attribute-expression}
+for standard attributes}
+whether the value of the \grammarterm{has-attribute-expression}
+is \tcode{0} or is given by \tref{cpp.cond.ha}.
 For other attributes recognized by the implementation,
 the value is
 \impldef{value of \grammarterm{has-attribute-expression}
@@ -929,6 +931,18 @@ import "d.h";   // point of definition of \#4 and \#5 in \tcode{"e.h"}
 int a = Y;      // OK, active macro definitions \#2 and \#4 are valid redefinitions
 int c = Z;      // error: active macro definitions \#3 and \#5 are not valid redefinitions of \tcode{Z}
 \end{codeblocktu}
+
+\begin{codeblocktu}{Module unit \tcode{f}}
+export module f;
+export import "a.h";
+
+int a = Y;      // OK
+\end{codeblocktu}
+
+\begin{codeblocktu}{Translation unit \tcode{\#1}}
+import f;
+int x = Y;      // error: \tcode{Y} is neither a defined macro nor a declared name
+\end{codeblocktu}
 \end{example}
 \indextext{macro!import|)}
 
@@ -1362,11 +1376,9 @@ Placemarker preprocessing tokens are handled specially: concatenation
 of two placemarkers results in a single placemarker preprocessing token, and
 concatenation of a placemarker with a non-placemarker preprocessing token results
 in the non-placemarker preprocessing token.
-If the result begins with a sequence matching the syntax of \grammarterm{universal-character-name},
-the behavior is undefined.
 \begin{note}
-This determination does not consider the replacement of
-\grammarterm{universal-character-name}s in translation phase 3\iref{lex.phases}.
+Concatenation can form
+a \grammarterm{universal-character-name}\iref{lex.charset}.
 \end{note}
 If the result is not a valid preprocessing token,
 the behavior is undefined.
@@ -1796,12 +1808,13 @@ an \impldef{text of \mname{TIME} when time of translation is not available} vali
 \defnxname{cpp_alias_templates}                   & \tcode{200704L} \\ \rowsep
 \defnxname{cpp_aligned_new}                       & \tcode{201606L} \\ \rowsep
 \defnxname{cpp_attributes}                        & \tcode{200809L} \\ \rowsep
+\defnxname{cpp_auto_cast}                         & \tcode{202110L} \\ \rowsep
 \defnxname{cpp_binary_literals}                   & \tcode{201304L} \\ \rowsep
 \defnxname{cpp_capture_star_this}                 & \tcode{201603L} \\ \rowsep
 \defnxname{cpp_char8_t}                           & \tcode{202207L} \\ \rowsep
 \defnxname{cpp_concepts}                          & \tcode{202002L} \\ \rowsep
 \defnxname{cpp_conditional_explicit}              & \tcode{201806L} \\ \rowsep
-\defnxname{cpp_constexpr}                         & \tcode{202211L} \\ \rowsep
+\defnxname{cpp_constexpr}                         & \tcode{202306L} \\ \rowsep
 \defnxname{cpp_constexpr_dynamic_alloc}           & \tcode{201907L} \\ \rowsep
 \defnxname{cpp_constexpr_in_decltype}             & \tcode{201711L} \\ \rowsep
 \defnxname{cpp_consteval}                         & \tcode{202211L} \\ \rowsep
@@ -1836,14 +1849,15 @@ an \impldef{text of \mname{TIME} when time of translation is not available} vali
 \defnxname{cpp_nontype_template_args}             & \tcode{201911L} \\ \rowsep
 \defnxname{cpp_nontype_template_parameter_auto}   & \tcode{201606L} \\ \rowsep
 \defnxname{cpp_nsdmi}                             & \tcode{200809L} \\ \rowsep
-\defnxname{cpp_range_based_for}                   & \tcode{201603L} \\ \rowsep
+\defnxname{cpp_placeholder_variables}             & \tcode{202306L} \\ \rowsep
+\defnxname{cpp_range_based_for}                   & \tcode{202211L} \\ \rowsep
 \defnxname{cpp_raw_strings}                       & \tcode{200710L} \\ \rowsep
 \defnxname{cpp_ref_qualifiers}                    & \tcode{200710L} \\ \rowsep
 \defnxname{cpp_return_type_deduction}             & \tcode{201304L} \\ \rowsep
 \defnxname{cpp_rvalue_references}                 & \tcode{200610L} \\ \rowsep
 \defnxname{cpp_size_t_suffix}                     & \tcode{202011L} \\ \rowsep
 \defnxname{cpp_sized_deallocation}                & \tcode{201309L} \\ \rowsep
-\defnxname{cpp_static_assert}                     & \tcode{201411L} \\ \rowsep
+\defnxname{cpp_static_assert}                     & \tcode{202306L} \\ \rowsep
 \defnxname{cpp_static_call_operator}              & \tcode{202207L} \\ \rowsep
 \defnxname{cpp_structured_bindings}               & \tcode{201606L} \\ \rowsep
 \defnxname{cpp_template_template_args}            & \tcode{201611L} \\ \rowsep
@@ -1883,13 +1897,11 @@ are \impldef{definition and meaning of \mname{STDC_VERSION}}.
 \item
 \indextext{__stdc_iso_10646__@\mname{STDC_ISO_10646}}%
 \mname{STDC_ISO_10646}\\
-An integer literal of the form \tcode{yyyymmL} (for example,
-\tcode{199712L}).
-If this symbol is defined, then every character in the Unicode required set, when
-stored in an object of type \keyword{wchar_t}, has the same value as the code point
-of that character. The \defn{Unicode required set} consists of all
-the characters that are defined by ISO/IEC 10646, along with
-all amendments and technical corrigenda as of the specified year and month.
+An integer literal of the form \tcode{yyyymmL}
+(for example, \tcode{199712L}).
+Whether \mname{STDC_ISO_10646} is predefined and
+if so, what its value is,
+are \impldef{presence and value of \mname{STDC_ISO_10646}}.
 
 \item
 \indextext{__stdcpp_threads__@\mname{STDCPP_THREADS}}%

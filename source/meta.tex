@@ -245,6 +245,8 @@ namespace std {
 
   template<class T> struct is_nothrow_destructible;
 
+  template<class T> struct is_implicit_lifetime;
+
   template<class T> struct has_virtual_destructor;
 
   template<class T> struct has_unique_object_representations;
@@ -520,6 +522,8 @@ namespace std {
   template<class T>
     constexpr bool @\libglobal{is_nothrow_destructible_v}@ = is_nothrow_destructible<T>::value;
   template<class T>
+    constexpr bool @\libglobal{is_implicit_lifetime_v}@ = is_implicit_lifetime<T>::value;
+  template<class T>
     constexpr bool @\libglobal{has_virtual_destructor_v}@ = has_virtual_destructor<T>::value;
   template<class T>
     constexpr bool has_unique_object_representations_v
@@ -579,6 +583,7 @@ namespace std {
 
   // \ref{meta.const.eval}, constant evaluation context
   constexpr bool is_constant_evaluated() noexcept;
+  consteval bool is_within_lifetime(const auto*) noexcept;
 }
 \end{codeblock}
 
@@ -1199,6 +1204,13 @@ The compilation of the
   \cv{}~\keyword{void}, or an array of unknown
   bound.                \\ \rowsep
 
+\indexlibraryglobal{is_implicit_lifetime}%
+\tcode{template<class T>}\br
+  \tcode{struct is_implicit_lifetime;} &
+  \tcode{T} is an implicit-lifetime type\iref{basic.types.general}. &
+  \tcode{T} shall be an array type,
+  a complete type, or \cv{}~\keyword{void}.  \\ \rowsep
+
 \indexlibraryglobal{has_virtual_destructor}%
 \tcode{template<class T>}\br
  \tcode{struct has_virtual_destructor;} &
@@ -1217,19 +1229,46 @@ The compilation of the
 \indexlibraryglobal{reference_constructs_from_temporary}%
 \tcode{template<class T, class U>}\br
   \tcode{struct reference_constructs_from_temporary;} &
-  \tcode{conjunction_v<is_reference<T>, is_constructible<T, U>>}
-  is \tcode{true}, and
-  the initialization \tcode{T t(\exposidnc{VAL}<U>);} binds \tcode{t} to
-  a temporary object whose lifetime is extended\iref{class.temporary}. &
+  \tcode{T} is a reference type, and
+  the initialization \tcode{T t(\exposidnc{VAL}<U>);} is
+  well-formed and binds \tcode{t} to
+  a temporary object whose lifetime is extended\iref{class.temporary}.
+  Access checking is performed as if in
+  a context unrelated to \tcode{T} and \tcode{U}.
+  Only the validity of the immediate context of
+  the variable initialization is considered.
+  \begin{tailnote}
+  The initialization can result in effects such as
+  the instantiation of class template specializations and
+  function template specializations,
+  the generation of implicitly-defined functions, and so on.
+  Such effects are not in the ``immediate context'' and
+  can result in the program being ill-formed.
+  \end{tailnote}
+&
   \tcode{T} and \tcode{U} shall be
   complete types, \cv{}~\keyword{void}, or arrays of unknown bound.  \\ \rowsep
 
 \indexlibraryglobal{reference_converts_from_temporary}%
 \tcode{template<class T, class U>}\br
   \tcode{struct reference_converts_from_temporary;} &
-  \tcode{conjunction_v<is_reference<T>, is_convertible<U, T>>} is \tcode{true},
-  and the initialization \tcode{T t = \exposidnc{VAL}<U>;} binds \tcode{t} to
-  a temporary object whose lifetime is extended\iref{class.temporary}. &
+  \tcode{T} is a reference type, and
+  the initialization \tcode{T t = \exposidnc{VAL}<U>;}
+  is well-formed and binds \tcode{t} to
+  a temporary object whose lifetime is extended\iref{class.temporary}.
+  Access checking is performed as if in
+  a context unrelated to \tcode{T} and \tcode{U}.
+  Only the validity of the immediate context of
+  the variable initialization is considered.
+  \begin{tailnote}
+  The initialization can result in effects such as
+  the instantiation of class template specializations and
+  function template specializations,
+  the generation of implicitly-defined functions, and so on.
+  Such effects are not in the ``immediate context'' and
+  can result in the program being ill-formed.
+  \end{tailnote}
+&
   \tcode{T} and \tcode{U} shall be
   complete types, \cv{}~\keyword{void}, or arrays of unknown bound.  \\ \rowsep
 
@@ -1754,7 +1793,7 @@ For multidimensional arrays, only the first array dimension is
 \indexlibraryglobal{remove_all_extents}%
 \tcode{template<class T>\br
  struct remove_all_extents;}                &
- If \tcode{T} is ``multi-dimensional array of \tcode{U}'', the resulting member
+ If \tcode{T} is ``multidimensional array of \tcode{U}'', the resulting member
  typedef \tcode{type} denotes \tcode{U}, otherwise \tcode{T}.                                       \\
 \end{libreqtab2a}
 
@@ -2083,9 +2122,11 @@ present as follows:
 \item Otherwise, if \tcode{sizeof...(T)} is two, let \tcode{T1} and \tcode{T2}
   denote the two types in the pack \tcode{T}. Then
   \begin{itemize}
-  \item If \tcode{T1} and \tcode{T2} are reference types and
-    \tcode{\placeholdernc{COMMON-REF}(T1, T2)} is well-formed, then the member
-    typedef \tcode{type} denotes that type.
+  \item Let \tcode{R} be \tcode{\placeholdernc{COMMON-REF}(T1, T2)}.
+    If \tcode{T1} and \tcode{T2} are reference types,
+    \tcode{R} is well-formed, and
+    \tcode{is_convertible_v<add_pointer_t<T1>, add_pointer_t<R>> \&\& is_convertible_v<add_poin\linebreak{}ter_t<T2>, add_pointer_t<R>>} is \tcode{true},
+    then the member typedef \tcode{type} denotes \tcode{R}.
 
   \item Otherwise, if
     \tcode{basic_common_reference<remove_cvref_t<T1>, remove_cvref_t<T2>,
@@ -2392,6 +2433,60 @@ constexpr void f(unsigned char *p, int n) {
 \end{example}
 \end{itemdescr}
 
+\indexlibraryglobal{is_within_lifetime}%
+\begin{itemdecl}
+consteval bool is_within_lifetime(const auto* p) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{true} if \tcode{p} is a pointer to an object that is
+within its lifetime\iref{basic.life}; otherwise, \tcode{false}.
+
+\pnum
+\remarks
+During the evaluation of an expression \tcode{E} as a core constant expression,
+a call to this function is ill-formed
+unless \tcode{p} points to an object that is usable
+in constant expressions or
+whose complete object's lifetime began within \tcode{E}.
+
+\pnum
+\begin{example}
+\begin{codeblock}
+struct OptBool {
+  union { bool b; char c; };
+
+  // note: this assumes common implementation properties for \tcode{bool} and \tcode{char}:
+  // * \tcode{sizeof(bool) == sizeof(char)}, and
+  // * the value representations for \tcode{true} and \tcode{false} are distinct
+  //   from the value representation for \tcode{2}
+  constexpr OptBool() : c(2) { }
+  constexpr OptBool(bool b) : b(b) { }
+
+  constexpr auto has_value() const -> bool {
+    if consteval {
+      return std::is_within_lifetime(&b);       // during constant evaluation, cannot read from \tcode{c}
+    } else {
+      return c != 2;                            // during runtime, must read from \tcode{c}
+    }
+  }
+
+  constexpr auto operator*() -> bool& {
+    return b;
+  }
+};
+
+constexpr OptBool disengaged;
+constexpr OptBool engaged(true);
+static_assert(!disengaged.has_value());
+static_assert(engaged.has_value());
+static_assert(*engaged);
+\end{codeblock}
+\end{example}
+\end{itemdescr}
+
 \rSec1[ratio]{Compile-time rational arithmetic}
 
 \rSec2[ratio.general]{In general}
@@ -2446,26 +2541,30 @@ namespace std {
     constexpr bool @\libglobal{ratio_greater_equal_v}@ = ratio_greater_equal<R1, R2>::value;
 
   // \ref{ratio.si}, convenience SI typedefs
-  using @\libglobal{yocto}@ = ratio<1, 1'000'000'000'000'000'000'000'000>;  // see below
-  using @\libglobal{zepto}@ = ratio<1,     1'000'000'000'000'000'000'000>;  // see below
-  using @\libglobal{atto}@  = ratio<1,         1'000'000'000'000'000'000>;
-  using @\libglobal{femto}@ = ratio<1,             1'000'000'000'000'000>;
-  using @\libglobal{pico}@  = ratio<1,                 1'000'000'000'000>;
-  using @\libglobal{nano}@  = ratio<1,                     1'000'000'000>;
-  using @\libglobal{micro}@ = ratio<1,                         1'000'000>;
-  using @\libglobal{milli}@ = ratio<1,                             1'000>;
-  using @\libglobal{centi}@ = ratio<1,                               100>;
-  using @\libglobal{deci}@  = ratio<1,                                10>;
-  using @\libglobal{deca}@  = ratio<                               10, 1>;
-  using @\libglobal{hecto}@ = ratio<                              100, 1>;
-  using @\libglobal{kilo}@  = ratio<                            1'000, 1>;
-  using @\libglobal{mega}@  = ratio<                        1'000'000, 1>;
-  using @\libglobal{giga}@  = ratio<                    1'000'000'000, 1>;
-  using @\libglobal{tera}@  = ratio<                1'000'000'000'000, 1>;
-  using @\libglobal{peta}@  = ratio<            1'000'000'000'000'000, 1>;
-  using @\libglobal{exa}@   = ratio<        1'000'000'000'000'000'000, 1>;
-  using @\libglobal{zetta}@ = ratio<    1'000'000'000'000'000'000'000, 1>;  // see below
-  using @\libglobal{yotta}@ = ratio<1'000'000'000'000'000'000'000'000, 1>;  // see below
+  using @\libglobal{quecto}@ = ratio<1, 1'000'000'000'000'000'000'000'000'000'000>;     // \seebelow
+  using @\libglobal{ronto}@  = ratio<1,     1'000'000'000'000'000'000'000'000'000>;     // \seebelow
+  using @\libglobal{yocto}@  = ratio<1,         1'000'000'000'000'000'000'000'000>;     // \seebelow
+  using @\libglobal{zepto}@  = ratio<1,             1'000'000'000'000'000'000'000>;     // \seebelow
+  using @\libglobal{atto}@   = ratio<1,                 1'000'000'000'000'000'000>;
+  using @\libglobal{femto}@  = ratio<1,                     1'000'000'000'000'000>;
+  using @\libglobal{pico}@   = ratio<1,                         1'000'000'000'000>;
+  using @\libglobal{nano}@   = ratio<1,                             1'000'000'000>;
+  using @\libglobal{micro}@  = ratio<1,                                 1'000'000>;
+  using @\libglobal{milli}@  = ratio<1,                                     1'000>;
+  using @\libglobal{centi}@  = ratio<1,                                       100>;
+  using @\libglobal{deci}@   = ratio<1,                                        10>;
+  using @\libglobal{deca}@   = ratio<                                       10, 1>;
+  using @\libglobal{hecto}@  = ratio<                                      100, 1>;
+  using @\libglobal{kilo}@   = ratio<                                    1'000, 1>;
+  using @\libglobal{mega}@   = ratio<                                1'000'000, 1>;
+  using @\libglobal{giga}@   = ratio<                            1'000'000'000, 1>;
+  using @\libglobal{tera}@   = ratio<                        1'000'000'000'000, 1>;
+  using @\libglobal{peta}@   = ratio<                    1'000'000'000'000'000, 1>;
+  using @\libglobal{exa}@    = ratio<                1'000'000'000'000'000'000, 1>;
+  using @\libglobal{zetta}@  = ratio<            1'000'000'000'000'000'000'000, 1>;     // \seebelow
+  using @\libglobal{yotta}@  = ratio<        1'000'000'000'000'000'000'000'000, 1>;     // \seebelow
+  using @\libglobal{ronna}@  = ratio<    1'000'000'000'000'000'000'000'000'000, 1>;     // \seebelow
+  using @\libglobal{quetta}@ = ratio<1'000'000'000'000'000'000'000'000'000'000, 1>;     // \seebelow
 }
 \end{codeblockdigitsep}
 
@@ -2627,12 +2726,20 @@ template<class R1, class R2>
 \rSec2[ratio.si]{SI types for \tcode{ratio}}
 
 \pnum
+\indexlibraryglobal{quecto}%
+\indexlibraryglobal{ronto}%
 \indexlibraryglobal{yocto}%
 \indexlibraryglobal{zepto}%
 \indexlibraryglobal{zetta}%
 \indexlibraryglobal{yotta}%
-For each of the \grammarterm{typedef-name}{s} \tcode{yocto}, \tcode{zepto},
-\tcode{zetta}, and \tcode{yotta}, if both of the constants used in its
+\indexlibraryglobal{ronna}%
+\indexlibraryglobal{quetta}%
+For each of the \grammarterm{typedef-name}{s}
+\tcode{quecto}, \tcode{ronto},
+\tcode{yocto}, \tcode{zepto},
+\tcode{zetta}, \tcode{yotta},
+\tcode{ronna}, and \tcode{quetta},
+if both of the constants used in its
 specification are representable by \tcode{intmax_t}, the typedef is
 defined; if either of the constants is not representable by \tcode{intmax_t},
 the typedef is not defined.

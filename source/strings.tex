@@ -157,7 +157,7 @@ for each \tcode{i} in \tcode{[0,n)}, performs \tcode{X::assign(s[i],p[i])}.
 Copies correctly even where the ranges \tcode{[p,p+n)} and \tcode{[s,s+n)} overlap.\br \returns \tcode{s}.    &   linear  \\ \rowsep
 \tcode{X::copy(s,p,n)}  &   \tcode{X::char_type*}   &
  \expects
-\tcode{p} not in \tcode{[s,s+n)}.\par
+The ranges \range{p}{p+n} and \range{s}{s+n} do not overlap.\par
  \returns
 \tcode{s}.\br
 for each \tcode{i} in
@@ -868,14 +868,10 @@ Let \tcode{d} be an lvalue of type \tcode{remove_cvref_t<R>}.
 \item
 \tcode{is_same_v<ranges::range_value_t<R>, charT>} is \tcode{true},
 \item
-\tcode{is_convertible_v<R, const charT*>} is \tcode{false},
+\tcode{is_convertible_v<R, const charT*>} is \tcode{false}, and
 \item
 \tcode{d.operator ::std::basic_string_view<charT, traits>()}
-is not a valid expression, and
-\item
-if the \grammarterm{qualified-id} \tcode{remove_reference_t<R>::traits_type}
-is valid and denotes a type,
-\tcode{is_same_v<remove_reference_t<R>::traits_type, traits>} is \tcode{true}.
+is not a valid expression.
 \end{itemize}
 
 \pnum
@@ -1797,12 +1793,12 @@ and
 
 namespace std {
   // \ref{char.traits}, character traits
-  template<class charT> struct char_traits;
-  template<> struct char_traits<char>;
-  template<> struct char_traits<char8_t>;
-  template<> struct char_traits<char16_t>;
-  template<> struct char_traits<char32_t>;
-  template<> struct char_traits<wchar_t>;
+  template<class charT> struct char_traits;                             // freestanding
+  template<> struct char_traits<char>;                                  // freestanding
+  template<> struct char_traits<char8_t>;                               // freestanding
+  template<> struct char_traits<char16_t>;                              // freestanding
+  template<> struct char_traits<char32_t>;                              // freestanding
+  template<> struct char_traits<wchar_t>;                               // freestanding
 
   // \ref{basic.string}, \tcode{basic_string}
   template<class charT, class traits = char_traits<charT>, class Allocator = allocator<charT>>
@@ -2010,7 +2006,7 @@ the type of the char-like objects held in a \tcode{basic_string} object
 is designated by \tcode{charT}.
 
 \pnum
-A specialization of \tcode{basic_string} is a contiguous container\iref{container.requirements.general}.
+A specialization of \tcode{basic_string} is a contiguous container\iref{container.reqmts}.
 
 \pnum
 In all cases,
@@ -2372,13 +2368,11 @@ If any member function or operator of \tcode{basic_string} throws an exception, 
 function or operator has no other effect on the \tcode{basic_string} object.
 
 \pnum
-In every specialization \tcode{basic_string<charT, traits, Allocator>},
-the type \tcode{allocator_traits<All\-ocator>::value_type} shall name the same type
-as \tcode{charT}. Every object of type
+Every object of type
 \tcode{basic_string<charT, traits, Allocator>} uses an object of type
 \tcode{Allocator} to allocate and free storage for the contained \tcode{charT}
 objects as needed. The \tcode{Allocator} object used is
-obtained as described in \ref{container.requirements.general}.
+obtained as described in \ref{container.reqmts}.
 In every specialization \tcode{basic_string<charT, traits, Allocator>},
 the type \tcode{traits} shall meet
 the character traits requirements\iref{char.traits}.
@@ -2386,7 +2380,9 @@ the character traits requirements\iref{char.traits}.
 Every specialization \tcode{basic_string<charT, traits, Allocator>} is
 an allocator-aware container,
 but does not use the allocator's \tcode{construct} and \tcode{destroy}
-member functions\iref{container.requirements.general}.
+member functions\iref{container.requirements.pre}.
+The program is ill-formed if
+\tcode{Allocator::value_type} is not the same type as \tcode{charT}.
 \end{note}
 \begin{note}
 The program is ill-formed if \tcode{traits::char_type}
@@ -2573,7 +2569,8 @@ constexpr basic_string(const charT* s, const Allocator& a = Allocator());
 \pnum
 \constraints
 \tcode{Allocator} is a type
-that qualifies as an allocator\iref{container.requirements.general}.
+
+that qualifies as an allocator\iref{container.reqmts}.
 \begin{note}
 This affects class template argument deduction.
 \end{note}
@@ -2592,7 +2589,7 @@ constexpr basic_string(size_type n, charT c, const Allocator& a = Allocator());
 \pnum
 \constraints
 \tcode{Allocator} is a type
-that qualifies as an allocator\iref{container.requirements.general}.
+that qualifies as an allocator\iref{container.reqmts}.
 \begin{note}
 This affects class template argument deduction.
 \end{note}
@@ -2612,7 +2609,7 @@ template<class InputIterator>
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input
-iterator\iref{container.requirements.general}.
+iterator\iref{container.reqmts}.
 
 \pnum
 \effects
@@ -2676,7 +2673,7 @@ template<class InputIterator,
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input iterator,
-and \tcode{Allocator} is a type that qualifies as an allocator\iref{container.requirements.general}.
+and \tcode{Allocator} is a type that qualifies as an allocator\iref{container.reqmts}.
 \end{itemdescr}
 
 \begin{itemdecl}
@@ -2699,7 +2696,7 @@ template<class charT,
 \pnum
 \constraints
 \tcode{Allocator} is a type that qualifies as
-an allocator\iref{container.requirements.general}.
+an allocator\iref{container.reqmts}.
 \end{itemdescr}
 
 \indexlibrarymember{operator=}{basic_string}%
@@ -2728,7 +2725,7 @@ constexpr basic_string& operator=(basic_string&& str)
 \begin{itemdescr}
 \pnum
 \effects
-Move assigns as a sequence container\iref{container.requirements},
+Move assigns as a sequence container\iref{sequence.reqmts},
 except that iterators, pointers and references may be invalidated.
 
 \pnum
@@ -2944,37 +2941,40 @@ Let
 \item
 \tcode{k} be \tcode{min(o, n)}.
 \item
-\tcode{p} be a \tcode{charT*},
+\tcode{p} be a value of type \tcode{charT*} or \tcode{charT* const},
 such that the range \crange{p}{p + n} is valid and
 \tcode{this->compare(0, k, p, k) == 0} is \tcode{true} before the call.
 The values in the range \crange{p + k}{p + n} may be indeterminate\iref{basic.indet}.
 \item
-$OP$ be the expression \tcode{std::move(op)(p, n)}.
+\tcode{m} be a value of type \tcode{size_type} or \tcode{const size_type}
+equal to \tcode{n}.
 \item
-\tcode{r} = $OP$.
+\tcode{\placeholder{OP}} be the expression \tcode{std::move(op)(p, m)}.
+\item
+\tcode{r} = \tcode{\placeholder{OP}}.
 \end{itemize}
 
 \pnum
 \mandates
-$OP$ has an integer-like type\iref{iterator.concept.winc}.
+\tcode{\placeholder{OP}} has an integer-like type\iref{iterator.concept.winc}.
 
 \pnum
 \expects
 \begin{itemize}
 \item
-$OP$ does not throw an exception or modify \tcode{p} or \tcode{n}.
+\tcode{\placeholder{OP}} does not throw an exception or modify \tcode{p} or \tcode{m}.
 \item
 $\tcode{r} \geq 0$.
 \item
-$\tcode{r} \leq \tcode{n}$.
+$\tcode{r} \leq \tcode{m}$.
 \item
-After evaluating $OP$
+After evaluating \tcode{\placeholder{OP}}
 there are no indeterminate values in the range \range{p}{p + r}.
 \end{itemize}
 
 \pnum
 \effects
-Evaluates $OP$,
+Evaluates \tcode{\placeholder{OP}},
 replaces the contents of \tcode{*this} with \range{p}{p + r}, and
 invalidates all pointers and references to the range \crange{p}{p + n}.
 
@@ -2982,7 +2982,7 @@ invalidates all pointers and references to the range \crange{p}{p + n}.
 \recommended
 Implementations should avoid unnecessary copies and allocations
 by, for example, making \tcode{p} a pointer into internal storage and
-by restoring \tcode{*(p + r)} to \tcode{charT()} after evaluating $OP$.
+by restoring \tcode{*(p + r)} to \tcode{charT()} after evaluating \tcode{\placeholder{OP}}.
 \end{itemdescr}
 
 \indexlibrarymember{capacity}{basic_string}%
@@ -3378,7 +3378,7 @@ template<class InputIterator>
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input
-iterator\iref{container.requirements.general}.
+iterator\iref{container.reqmts}.
 
 \pnum
 \effects
@@ -3583,7 +3583,7 @@ template<class InputIterator>
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input
-iterator\iref{container.requirements.general}.
+iterator\iref{container.reqmts}.
 
 \pnum
 \effects
@@ -3801,7 +3801,7 @@ template<class InputIterator>
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input
-iterator\iref{container.requirements.general}.
+iterator\iref{container.reqmts}.
 
 \pnum
 \expects
@@ -4199,7 +4199,7 @@ template<class InputIterator>
 \pnum
 \constraints
 \tcode{InputIterator} is a type that qualifies as an input
-iterator\iref{container.requirements.general}.
+iterator\iref{container.reqmts}.
 
 \pnum
 \effects
@@ -5196,18 +5196,7 @@ string to_string(long double val);
 \begin{itemdescr}
 \pnum
 \returns
-Each function returns a \tcode{string} object holding the character
-representation of the value of its argument that would be generated by calling
-\tcode{sprintf(buf, fmt, val)} with a format specifier of
-\tcode{"\%d"},
-\tcode{"\%u"},
-\tcode{"\%ld"},
-\tcode{"\%lu"},
-\tcode{"\%lld"},  \tcode{"\%llu"},
-\tcode{"\%f"},
-\tcode{"\%f"},
-or \tcode{"\%Lf"}, respectively, where \tcode{buf} designates an internal
-character buffer of sufficient size.
+\tcode{format("\{\}", val)}.
 \end{itemdescr}
 
 \indexlibraryglobal{stoi}%
@@ -5294,19 +5283,7 @@ wstring to_wstring(long double val);
 \begin{itemdescr}
 \pnum
 \returns
-Each function returns a \tcode{wstring} object holding the character
-representation of the value of its argument that would be generated by calling
-\tcode{swprintf(buf, buffsz, fmt, val)} with a format specifier of
-\tcode{L"\%d"},
-\tcode{L"\%u"},
-\tcode{L"\%ld"},
-\tcode{L"\%lu"},
-\tcode{L"\%lld"},
-\tcode{L"\%llu"},
-\tcode{L"\%f"},
-\tcode{L"\%f"},
-or \tcode{L"\%Lf"}, respectively, where \tcode{buf} designates an
-internal character buffer of sufficient size \tcode{buffsz}.
+\tcode{format(L"\{\}", val)}.
 \end{itemdescr}
 
 \rSec2[basic.string.hash]{Hash support}
@@ -5515,38 +5492,38 @@ are the same as the C standard library header \libheader{wctype.h}.
 \indexlibraryglobal{strxfrm}%
 \begin{codeblock}
 namespace std {
-  using size_t = @\textit{see \ref{support.types.layout}}@;
+  using size_t = @\textit{see \ref{support.types.layout}}@;                                            // freestanding
 
-  void* memcpy(void* s1, const void* s2, size_t n);
-  void* memmove(void* s1, const void* s2, size_t n);
-  char* strcpy(char* s1, const char* s2);
-  char* strncpy(char* s1, const char* s2, size_t n);
-  char* strcat(char* s1, const char* s2);
-  char* strncat(char* s1, const char* s2, size_t n);
-  int memcmp(const void* s1, const void* s2, size_t n);
-  int strcmp(const char* s1, const char* s2);
+  void* memcpy(void* s1, const void* s2, size_t n);                     // freestanding
+  void* memmove(void* s1, const void* s2, size_t n);                    // freestanding
+  char* strcpy(char* s1, const char* s2);                               // freestanding
+  char* strncpy(char* s1, const char* s2, size_t n);                    // freestanding
+  char* strcat(char* s1, const char* s2);                               // freestanding
+  char* strncat(char* s1, const char* s2, size_t n);                    // freestanding
+  int memcmp(const void* s1, const void* s2, size_t n);                 // freestanding
+  int strcmp(const char* s1, const char* s2);                           // freestanding
   int strcoll(const char* s1, const char* s2);
-  int strncmp(const char* s1, const char* s2, size_t n);
+  int strncmp(const char* s1, const char* s2, size_t n);                // freestanding
   size_t strxfrm(char* s1, const char* s2, size_t n);
-  const void* memchr(const void* s, int c, size_t n);           // see \ref{library.c}
-  void* memchr(void* s, int c, size_t n);                       // see \ref{library.c}
-  const char* strchr(const char* s, int c);                     // see \ref{library.c}
-  char* strchr(char* s, int c);                                 // see \ref{library.c}
-  size_t strcspn(const char* s1, const char* s2);
-  const char* strpbrk(const char* s1, const char* s2);          // see \ref{library.c}
-  char* strpbrk(char* s1, const char* s2);                      // see \ref{library.c}
-  const char* strrchr(const char* s, int c);                    // see \ref{library.c}
-  char* strrchr(char* s, int c);                                // see \ref{library.c}
-  size_t strspn(const char* s1, const char* s2);
-  const char* strstr(const char* s1, const char* s2);           // see \ref{library.c}
-  char* strstr(char* s1, const char* s2);                       // see \ref{library.c}
-  char* strtok(char* s1, const char* s2);
-  void* memset(void* s, int c, size_t n);
+  const void* memchr(const void* s, int c, size_t n);                   // freestanding; see \ref{library.c}
+  void* memchr(void* s, int c, size_t n);                               // freestanding; see \ref{library.c}
+  const char* strchr(const char* s, int c);                             // freestanding; see \ref{library.c}
+  char* strchr(char* s, int c);                                         // freestanding; see \ref{library.c}
+  size_t strcspn(const char* s1, const char* s2);                       // freestanding
+  const char* strpbrk(const char* s1, const char* s2);                  // freestanding; see \ref{library.c}
+  char* strpbrk(char* s1, const char* s2);                              // freestanding; see \ref{library.c}
+  const char* strrchr(const char* s, int c);                            // freestanding; see \ref{library.c}
+  char* strrchr(char* s, int c);                                        // freestanding; see \ref{library.c}
+  size_t strspn(const char* s1, const char* s2);                        // freestanding
+  const char* strstr(const char* s1, const char* s2);                   // freestanding; see \ref{library.c}
+  char* strstr(char* s1, const char* s2);                               // freestanding; see \ref{library.c}
+  char* strtok(char* s1, const char* s2);                               // freestanding
+  void* memset(void* s, int c, size_t n);                               // freestanding
   char* strerror(int errnum);
-  size_t strlen(const char* s);
+  size_t strlen(const char* s);                                         // freestanding
 }
 
-#define NULL @\textit{see \ref{support.types.nullptr}}@
+#define NULL @\textit{see \ref{support.types.nullptr}}@                                                // freestanding
 \end{codeblock}
 
 \pnum
@@ -5647,9 +5624,9 @@ but they have the same behavior as in the C standard library\iref{library.c}.
 \indexlibraryglobal{wscanf}%
 \begin{codeblock}
 namespace std {
-  using size_t = @\textit{see \ref{support.types.layout}}@;
-  using mbstate_t = @\seebelow@;
-  using wint_t = @\seebelow@;
+  using size_t = @\textit{see \ref{support.types.layout}}@;                                             // freestanding
+  using mbstate_t = @\seebelow@;                                          // freestanding
+  using wint_t = @\seebelow@;                                             // freestanding
 
   struct tm;
 
@@ -5682,32 +5659,32 @@ namespace std {
   long long int wcstoll(const wchar_t* nptr, wchar_t** endptr, int base);
   unsigned long int wcstoul(const wchar_t* nptr, wchar_t** endptr, int base);
   unsigned long long int wcstoull(const wchar_t* nptr, wchar_t** endptr, int base);
-  wchar_t* wcscpy(wchar_t* s1, const wchar_t* s2);
-  wchar_t* wcsncpy(wchar_t* s1, const wchar_t* s2, size_t n);
-  wchar_t* wmemcpy(wchar_t* s1, const wchar_t* s2, size_t n);
-  wchar_t* wmemmove(wchar_t* s1, const wchar_t* s2, size_t n);
-  wchar_t* wcscat(wchar_t* s1, const wchar_t* s2);
-  wchar_t* wcsncat(wchar_t* s1, const wchar_t* s2, size_t n);
-  int wcscmp(const wchar_t* s1, const wchar_t* s2);
+  wchar_t* wcscpy(wchar_t* s1, const wchar_t* s2);                      // freestanding
+  wchar_t* wcsncpy(wchar_t* s1, const wchar_t* s2, size_t n);           // freestanding
+  wchar_t* wmemcpy(wchar_t* s1, const wchar_t* s2, size_t n);           // freestanding
+  wchar_t* wmemmove(wchar_t* s1, const wchar_t* s2, size_t n);          // freestanding
+  wchar_t* wcscat(wchar_t* s1, const wchar_t* s2);                      // freestanding
+  wchar_t* wcsncat(wchar_t* s1, const wchar_t* s2, size_t n);           // freestanding
+  int wcscmp(const wchar_t* s1, const wchar_t* s2);                     // freestanding
   int wcscoll(const wchar_t* s1, const wchar_t* s2);
-  int wcsncmp(const wchar_t* s1, const wchar_t* s2, size_t n);
+  int wcsncmp(const wchar_t* s1, const wchar_t* s2, size_t n);          // freestanding
   size_t wcsxfrm(wchar_t* s1, const wchar_t* s2, size_t n);
-  int wmemcmp(const wchar_t* s1, const wchar_t* s2, size_t n);
-  const wchar_t* wcschr(const wchar_t* s, wchar_t c);           // see \ref{library.c}
-  wchar_t* wcschr(wchar_t* s, wchar_t c);                       // see \ref{library.c}
-  size_t wcscspn(const wchar_t* s1, const wchar_t* s2);
-  const wchar_t* wcspbrk(const wchar_t* s1, const wchar_t* s2); // see \ref{library.c}
-  wchar_t* wcspbrk(wchar_t* s1, const wchar_t* s2);             // see \ref{library.c}
-  const wchar_t* wcsrchr(const wchar_t* s, wchar_t c);          // see \ref{library.c}
-  wchar_t* wcsrchr(wchar_t* s, wchar_t c);                      // see \ref{library.c}
-  size_t wcsspn(const wchar_t* s1, const wchar_t* s2);
-  const wchar_t* wcsstr(const wchar_t* s1, const wchar_t* s2);  // see \ref{library.c}
-  wchar_t* wcsstr(wchar_t* s1, const wchar_t* s2);              // see \ref{library.c}
-  wchar_t* wcstok(wchar_t* s1, const wchar_t* s2, wchar_t** ptr);
-  const wchar_t* wmemchr(const wchar_t* s, wchar_t c, size_t n);    // see \ref{library.c}
-  wchar_t* wmemchr(wchar_t* s, wchar_t c, size_t n);            // see \ref{library.c}
-  size_t wcslen(const wchar_t* s);
-  wchar_t* wmemset(wchar_t* s, wchar_t c, size_t n);
+  int wmemcmp(const wchar_t* s1, const wchar_t* s2, size_t n);          // freestanding
+  const wchar_t* wcschr(const wchar_t* s, wchar_t c);                   // freestanding; see \ref{library.c}
+  wchar_t* wcschr(wchar_t* s, wchar_t c);                               // freestanding; see \ref{library.c}
+  size_t wcscspn(const wchar_t* s1, const wchar_t* s2);                 // freestanding
+  const wchar_t* wcspbrk(const wchar_t* s1, const wchar_t* s2);         // freestanding; see \ref{library.c}
+  wchar_t* wcspbrk(wchar_t* s1, const wchar_t* s2);                     // freestanding; see \ref{library.c}
+  const wchar_t* wcsrchr(const wchar_t* s, wchar_t c);                  // freestanding; see \ref{library.c}
+  wchar_t* wcsrchr(wchar_t* s, wchar_t c);                              // freestanding; see \ref{library.c}
+  size_t wcsspn(const wchar_t* s1, const wchar_t* s2);                  // freestanding
+  const wchar_t* wcsstr(const wchar_t* s1, const wchar_t* s2);          // freestanding; see \ref{library.c}
+  wchar_t* wcsstr(wchar_t* s1, const wchar_t* s2);                      // freestanding; see \ref{library.c}
+  wchar_t* wcstok(wchar_t* s1, const wchar_t* s2, wchar_t** ptr);       // freestanding
+  const wchar_t* wmemchr(const wchar_t* s, wchar_t c, size_t n);        // freestanding; see \ref{library.c}
+  wchar_t* wmemchr(wchar_t* s, wchar_t c, size_t n);                    // freestanding; see \ref{library.c}
+  size_t wcslen(const wchar_t* s);                                      // freestanding
+  wchar_t* wmemset(wchar_t* s, wchar_t c, size_t n);                    // freestanding
   size_t wcsftime(wchar_t* s, size_t maxsize, const wchar_t* format, const tm* timeptr);
   wint_t btowc(int c);
   int wctob(wint_t c);
@@ -5721,10 +5698,10 @@ namespace std {
   size_t wcsrtombs(char* dst, const wchar_t** src, size_t len, mbstate_t* ps);
 }
 
-#define NULL @\textit{see \ref{support.types.nullptr}}@
-#define WCHAR_MAX @\seebelow@
-#define WCHAR_MIN @\seebelow@
-#define WEOF @\seebelow@
+#define NULL @\textit{see \ref{support.types.nullptr}}@                                                  // freestanding
+#define WCHAR_MAX @\seebelow@                                             // freestanding
+#define WCHAR_MIN @\seebelow@                                             // freestanding
+#define WEOF @\seebelow@                                                  // freestanding
 \end{codeblock}
 
 \pnum

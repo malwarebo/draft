@@ -75,9 +75,15 @@ the form
 \end{bnf}
 
 \begin{bnf}
+\nontermdef{static_assert-message}\br
+  unevaluated-string\br
+  conditional-expression
+\end{bnf}
+
+\begin{bnf}
 \nontermdef{static_assert-declaration}\br
   \keyword{static_assert} \terminal{(} constant-expression \terminal{)} \terminal{;}\br
-  \keyword{static_assert} \terminal{(} constant-expression \terminal{,} string-literal \terminal{)} \terminal{;}
+  \keyword{static_assert} \terminal{(} constant-expression \terminal{,} static_assert-message \terminal{)} \terminal{;}
 \end{bnf}
 
 \begin{bnf}
@@ -205,7 +211,7 @@ where the
 
 \pnum
 If the \grammarterm{decl-specifier-seq} contains the \keyword{typedef}
-specifier, the declaration is called a \defnx{typedef declaration}{declaration!typedef}
+specifier, the declaration is a \defnx{typedef declaration}{declaration!typedef}
 and each \grammarterm{declarator-id}
 is declared to be a \grammarterm{typedef-name}, synonymous with its
 associated type\iref{dcl.typedef}.
@@ -213,11 +219,20 @@ associated type\iref{dcl.typedef}.
 Such a \grammarterm{declarator-id} is
 an \grammarterm{identifier}\iref{class.conv.fct}.
 \end{note}
-If the
-\grammarterm{decl-specifier-seq} contains no \keyword{typedef} specifier, the
-declaration is called a \defnx{function declaration}{declaration!function} if
-the type associated with a \grammarterm{declarator-id} is a function type\iref{dcl.fct} and
-an \defnx{object declaration}{declaration!object} otherwise.
+Otherwise, if the type associated with a \grammarterm{declarator-id}
+is a function type\iref{dcl.fct},
+the declaration is a \defnx{function declaration}{declaration!function}.
+Otherwise, if the type associated with a \grammarterm{declarator-id}
+is an object or reference type, the declaration is
+an \defnx{object declaration}{declaration!object}.
+Otherwise, the program is ill-formed.
+\begin{example}
+\begin{codeblock}
+int f(), x;             // OK, function declaration for \tcode{f} and object declaration for \tcode{x}
+extern void g(),        // OK, function declaration for \tcode{g}
+  y;                    // error: \tcode{void} is not an object type
+\end{codeblock}
+\end{example}
 
 \pnum
 \indextext{definition!declaration as}%
@@ -242,20 +257,83 @@ can only be used in a \grammarterm{template-declaration}\iref{temp.pre},
 \end{note}
 
 \pnum
-\indextext{\idxgram{static_assert}}%
+If a \grammarterm{static_assert-message}
+matches the syntactic requirements of \grammarterm{unevaluated-string},
+it is an \grammarterm{unevaluated-string} and
+the text of the \grammarterm{static_assert-message} is
+the text of the \grammarterm{unevaluated-string}.
+Otherwise, a \grammarterm{static_assert-message} shall be an expression $M$
+such that
+\begin{itemize}
+\item
+the expression \tcode{$M$.size()} is
+implicitly convertible to the type \tcode{std::size_t}, and
+\item
+the expression \tcode{$M$.data()} is
+implicitly convertible to the type ``pointer to \tcode{\keyword{const} \keyword{char}}''.
+\end{itemize}
+
+\pnum
+\indextext{\idxcode{static_assert}}%
 In a \grammarterm{static_assert-declaration},
-the \grammarterm{constant-expression}
+the \grammarterm{constant-expression} $E$
 is contextually converted to \keyword{bool} and
 the converted expression shall be a constant expression\iref{expr.const}.
-If the value of the expression when
-so converted is \tcode{true}, the declaration has no
-effect. Otherwise, the program is ill-formed, and the resulting
-diagnostic message\iref{intro.compliance} should include the text of
-the \grammarterm{string-literal}, if one is supplied.
+If the value of the expression $E$ when so converted is \tcode{true} or
+the expression is evaluated in the context of a template definition,
+the declaration has no effect and
+the \grammarterm{static_assert-message} is
+an unevaluated operand\iref{term.unevaluated.operand}.
+Otherwise,
+the \grammarterm{static_assert-declaration} \defnx{fails}{\idxcode{static_assert}!failed} and
+\begin{itemize}
+\item
+the program is ill-formed, and
+\item
+if the \grammarterm{static_assert-message} is
+a \grammarterm{conditional-expression} $M$,
+\begin{itemize}
+\item
+\tcode{$M$.size()} shall be a converted constant expression of
+type \tcode{std::size_t} and
+let $N$ denote the value of that expression,
+\item
+\tcode{$M$.data()}, implicitly converted to
+the type ``pointer to \tcode{\keyword{const} \keyword{char}}'',
+shall be a core constant expression and let $D$ denote the converted expression,
+\item
+for each $i$ where $0 \le i < N$,
+\tcode{$D$[$i$]} shall be an integral constant expression, and
+\item
+the text of the \grammarterm{static_assert-message} is formed by
+the sequence of $N$ code units, starting at $D$, of
+the ordinary literal encoding\iref{lex.charset}.
+\end{itemize}
+\end{itemize}
+
+\pnum
+\recommended
+When a \grammarterm{static_assert-declaration} fails,
+the resulting diagnostic message should include the text of
+the \grammarterm{static_assert-message}, if one is supplied.
 \begin{example}
 \begin{codeblock}
 static_assert(sizeof(int) == sizeof(void*), "wrong pointer size");
 static_assert(sizeof(int[2]));          // OK, narrowing allowed
+
+template <class T>
+void f(T t) {
+  if constexpr (sizeof(T) == sizeof(int)) {
+    use(t);
+  } else {
+    static_assert(false, "must be int-sized");
+  }
+}
+
+void g(char c) {
+  f(0);                                 // OK
+  f(c);                                 // error on implementations where \tcode{sizeof(int) > 1}: must be \tcode{int}-sized
+}
 \end{codeblock}
 \end{example}
 
@@ -787,16 +865,17 @@ shall not be declared with the \keyword{consteval} specifier.
 \pnum
 \indextext{specifier!\idxcode{constexpr}!function}%
 \indextext{constexpr function}%
-The definition of a constexpr function shall satisfy the following
-requirements:
+A function is \defn{constexpr-suitable} if:
 \begin{itemize}
 \item
-it shall not be a coroutine\iref{dcl.fct.def.coroutine};
+it is not a coroutine\iref{dcl.fct.def.coroutine}, and
 
 \item
 if the function is a constructor or destructor,
-its class shall not have any virtual base classes.
+its class does not have any virtual base classes.
 \end{itemize}
+Except for instantiated constexpr functions,
+non-templated constexpr functions shall be constexpr-suitable.
 
 \begin{example}
 \begin{codeblock}
@@ -829,16 +908,6 @@ constexpr int g(int x, int n) { // OK
 }
 \end{codeblock}
 \end{example}
-
-\pnum
-If the instantiated template specialization of a constexpr function
-template
-or member function of a class template
-would fail to satisfy the requirements for a constexpr
-function,
-that specialization is still a constexpr function,
-even though a call to such a function cannot appear in a constant
-expression.
 
 \pnum
 An invocation of a constexpr function in a given context
@@ -885,7 +954,9 @@ shall be initialized.
 In any \keyword{constexpr} variable declaration,
 the full-expression of the initialization
 shall be a constant expression\iref{expr.const}.
-A \keyword{constexpr} variable shall have constant destruction.
+A \keyword{constexpr} variable that is an object,
+as well as any temporary to which a \keyword{constexpr} reference is bound,
+shall have constant destruction.
 \begin{example}
 \begin{codeblock}
 struct pixel {
@@ -909,10 +980,12 @@ is reachable at the point of the initializing declaration.
 
 \pnum
 If a variable declared with the \keyword{constinit} specifier has
-dynamic initialization\iref{basic.start.dynamic}, the program is ill-formed.
+dynamic initialization\iref{basic.start.dynamic}, the program is ill-formed,
+even if the implementation would perform that initialization as
+a static initialization\iref{basic.start.static}.
 \begin{note}
 The \keyword{constinit} specifier ensures that the variable
-is initialized during static initialization\iref{basic.start.static}.
+is initialized during static initialization.
 \end{note}
 
 \pnum
@@ -1747,8 +1820,8 @@ auto sum(int i) {
 \end{example}
 
 \pnum
-Return type deduction for a templated entity
-that is a function or function template with a placeholder in its
+Return type deduction for a templated
+function with a placeholder in its
 declared type occurs when the definition is instantiated even if the function
 body contains a \tcode{return} statement with a non-type-dependent operand.
 \begin{note}
@@ -2143,10 +2216,10 @@ auto j = 2.0;           // OK, \tcode{j} deduced to have type \tcode{double}
 \end{note}
 
 \pnum
-The optional \grammarterm{requires-clause}\iref{temp.pre} in an
+The optional \grammarterm{requires-clause} in an
 \grammarterm{init-declarator} or \grammarterm{member-declarator}
 shall be present only if the declarator declares a
-templated function\iref{dcl.fct}.
+templated function\iref{temp.pre}.
 %
 \indextext{trailing requires-clause@trailing \gterm{requires-clause}|see{\gterm{requires-clause}, trailing}}%
 When present after a declarator, the \grammarterm{requires-clause}
@@ -2206,6 +2279,7 @@ Declarators have the syntax
 \end{bnf}
 
 \begin{bnf}
+\microtypesetup{protrusion=false}\obeyspaces
 \nontermdef{ptr-operator}\br
     \terminal{*} \opt{attribute-specifier-seq} \opt{cv-qualifier-seq}\br
     \terminal{\&} \opt{attribute-specifier-seq}\br
@@ -2249,7 +2323,7 @@ or
 \tcode{typeid},
 the name of a type shall be specified.
 This can be done with a
-\grammarterm{type-id},
+\grammarterm{type-id} or \grammarterm{new-type-id}\iref{expr.new},
 which is syntactically a declaration for a variable or function
 of that type that omits the name of the entity.
 
@@ -2348,6 +2422,11 @@ the resolution is to consider any construct,
 such as the potential parameter declaration,
 that could possibly be a declaration
 to be a declaration.
+However, a construct that can syntactically be a \grammarterm{declaration}
+whose outermost \grammarterm{declarator}
+would match the grammar of a \grammarterm{declarator}
+with a \grammarterm{trailing-return-type}
+is a declaration only if it starts with \keyword{auto}.
 \begin{note}
 A declaration can be explicitly disambiguated by adding parentheses
 around the argument.
@@ -2359,13 +2438,16 @@ list-initialization syntax, or by use of a non-function-style cast.
 struct S {
   S(int);
 };
+typedef struct BB { int C[2]; } *B, C;
 
 void foo(double a) {
-  S w(int(a));                  // function declaration
-  S x(int());                   // function declaration
-  S y((int(a)));                // object declaration
+  S v(int(a));                  // function declaration
+  S w(int());                   // function declaration
+  S x((int(a)));                // object declaration
   S y((int)a);                  // object declaration
   S z = int(a);                 // object declaration
+  S a(B()->C);                  // object declaration
+  S b(auto()->C);               // function declaration
 }
 \end{codeblock}
 \end{example}
@@ -2378,6 +2460,11 @@ The resolution is that any construct that could possibly be a
 \grammarterm{type-id}
 in its syntactic context shall be considered a
 \grammarterm{type-id}.
+However, a construct that can syntactically be a \grammarterm{type-id}
+whose outermost \grammarterm{abstract-declarator}
+would match the grammar of an \grammarterm{abstract-declarator}
+with a \grammarterm{trailing-return-type}
+is considered a \grammarterm{type-id} only if it starts with \keyword{auto}.
 \begin{example}
 \begin{codeblock}
 template <class T> struct X {};
@@ -2395,6 +2482,12 @@ void foo(signed char a) {
   (int())+1;                    // type-id (ill-formed)
   (int(a))+1;                   // expression
   (int(unsigned(a)))+1;         // type-id (ill-formed)
+}
+
+typedef struct BB { int C[2]; } *B, C;
+void g() {
+  sizeof(B()->C[1]);            // OK, \tcode{\keyword{sizeof}(}expression\tcode{)}
+  sizeof(auto()->C[1]);         // error: \keyword{sizeof} of a function returning an array
 }
 \end{codeblock}
 \end{example}
@@ -2836,7 +2929,7 @@ not ``lvalue reference to \tcode{const int}''.
 A reference can be thought of as a name of an object.
 \end{note}
 \indextext{\idxcode{void\&}}%
-A declarator that specifies the type
+Forming the type
 ``reference to \cv{}~\keyword{void}''
 is ill-formed.
 
@@ -4052,7 +4145,7 @@ described in \ref{class.access}.
 \end{note}
 
 \pnum
-Except for member functions of class templates, the
+Except for member functions of templated classes, the
 default arguments in a member function definition that appears
 outside of the class definition
 are added to the set of default arguments provided by the
@@ -4061,9 +4154,9 @@ the program is ill-formed if a default constructor\iref{class.default.ctor},
 copy or move constructor\iref{class.copy.ctor}, or
 copy or move assignment operator\iref{class.copy.assign}
 is so declared.
-Default arguments for a member function of a class template
+Default arguments for a member function of a templated class
 shall be specified on the initial declaration of the member
-function within the class template.
+function within the templated class.
 \begin{example}
 \begin{codeblock}
 class C {
@@ -4466,7 +4559,7 @@ In some cases, additional initialization is done later.
 If no initializer is specified for an object, the object is default-initialized.
 
 \pnum
-If the entity being initialized does not have class type, the
+If the entity being initialized does not have class or array type, the
 \grammarterm{expression-list} in a
 parenthesized initializer shall be a single expression.
 
@@ -4673,8 +4766,9 @@ the initial value of the object being initialized is \tcode{false}.
 \item
 Otherwise, the initial value of the object being initialized is
 the (possibly converted) value of the initializer expression.
-A standard conversion sequence\iref{conv} will be used, if necessary,
-to convert the initializer expression to the cv-unqualified version of
+A standard conversion sequence\iref{conv} is used
+to convert the initializer expression to
+a prvalue of the cv-unqualified version of
 the destination type;
 no user-defined conversions are considered.
 If the conversion cannot
@@ -5125,7 +5219,7 @@ struct A {
 \end{example}
 
 \pnum
-When initializing a multi-dimensional array,
+When initializing a multidimensional array,
 the
 \grammarterm{initializer-clause}{s}
 initialize the elements with the last (rightmost) index of the array
@@ -5204,7 +5298,7 @@ Likewise the next two lines initialize
 and
 \tcode{y[2]}.
 The initializer ends early and therefore
-\tcode{y[3]}s
+\tcode{y[3]}'s
 elements are initialized as if explicitly initialized with an
 expression of the form
 \tcode{float()},
@@ -5715,7 +5809,8 @@ List-initialization of an object or reference of type \tcode{T} is defined as fo
 \begin{itemize}
 \item
 If the \grammarterm{braced-init-list}
-contains a \grammarterm{designated-initializer-list},
+contains a \grammarterm{designated-initializer-list} and
+\tcode{T} is not a reference type,
 \tcode{T} shall be an aggregate class.
 The ordered \grammarterm{identifier}{s}
 in the \grammarterm{designator}{s}
@@ -5839,7 +5934,9 @@ Handle h { 42 };                    // OK
 \end{example}
 
 \item Otherwise, if
-the initializer list has a single element of type \tcode{E} and either
+the initializer list
+is not a \grammarterm{designated-initializer-list} and
+has a single element of type \tcode{E} and either
 \tcode{T} is not a reference type or its referenced type is
 reference-related to \tcode{E}, the object or reference is initialized
 from that element (by copy-initialization for copy-list-initialization,
@@ -5884,6 +5981,9 @@ const int (&iar)[2] = { 1, 2 };     // OK, \tcode{iar} is bound to temporary arr
 struct A { } a;
 struct B { explicit B(const A&); };
 const B& b2{a};                     // error: cannot copy-list-initialize \tcode{B} temporary from \tcode{A}
+
+struct C { int x; };
+C&& c = { .x = 1 };                 // OK
 \end{codeblock}
 \end{example}
 
@@ -5942,36 +6042,64 @@ An object of type \tcode{std::initializer_list<E>} is constructed from
 an initializer list as if
 the implementation generated and materialized\iref{conv.rval}
 a prvalue of type ``array of $N$ \tcode{const E}'',
-where $N$ is the number of elements in the
-initializer list. Each element of that array is copy-initialized with the
+where $N$ is the number of elements in the initializer list;
+this is called the initializer list's \defnadj{backing}{array}.
+Each element of the backing array is copy-initialized with the
 corresponding element of the initializer list, and the
 \tcode{std::initializer_list<E>} object is constructed to refer to that array.
 \begin{note}
 A constructor or conversion function selected for the copy is required to be
 accessible\iref{class.access} in the context of the initializer list.
 \end{note}
-If a narrowing conversion is required to initialize any of the elements, the program is ill-formed.
+If a narrowing conversion is required to initialize any of the elements,
+the program is ill-formed.
+Whether all backing arrays are distinct
+(that is, are stored in non-overlapping objects) is unspecified.
+
+\pnum
+The backing array has the same lifetime as any other temporary
+object\iref{class.temporary}, except that initializing an
+\tcode{initializer_list} object from the array extends the lifetime of
+the array exactly like binding a reference to a temporary.
 \begin{example}
 \begin{codeblock}
-struct X {
-  X(std::initializer_list<double> v);
+void f(std::initializer_list<double> il);
+void g(float x) {
+  f({1, x, 3});
+}
+void h() {
+  f({1, 2, 3});
+}
+
+struct A {
+  mutable int i;
 };
-X x{ 1,2,3 };
+void q(std::initializer_list<A>);
+void r() {
+  q({A{1}, A{2}, A{3}});
+}
 \end{codeblock}
 
 The initialization will be implemented in a way roughly equivalent to this:
 \begin{codeblock}
-const double __a[3] = {double{1}, double{2}, double{3}};
-X x(std::initializer_list<double>(__a, __a+3));
+void g(float x) {
+  const double __a[3] = {double{1}, double{x}, double{3}};              // backing array
+  f(std::initializer_list<double>(__a, __a+3));
+}
+void h() {
+  static constexpr double __b[3] = {double{1}, double{2}, double{3}};   // backing array
+  f(std::initializer_list<double>(__b, __b+3));
+}
+void r() {
+  const A __c[3] = {A{1}, A{2}, A{3}};                                  // backing array
+  q(std::initializer_list<A>(__c, __c+3));
+}
 \end{codeblock}
-assuming that the implementation can construct an \tcode{initializer_list} object with a pair of pointers.
+assuming that the implementation
+can construct an \tcode{initializer_list} object with a pair of pointers, and
+with the understanding that \tcode{__b} does not outlive the call to \tcode{f}.
 \end{example}
 
-\pnum
-The array has the same lifetime as any other temporary
-object\iref{class.temporary}, except that initializing an
-\tcode{initiali\-zer_list} object from the array extends the lifetime of
-the array exactly like binding a reference to a temporary.
 \begin{example}
 \begin{codeblock}
 typedef std::complex<double> cmplx;
@@ -5998,9 +6126,6 @@ the constructor's \grammarterm{ctor-initializer} as if by binding
 a temporary array to a reference member, so the program is
 ill-formed\iref{class.base.init}.
 \end{example}
-\begin{note}
-The implementation is free to allocate the array in read-only memory if an explicit array with the same initializer can be so allocated.
-\end{note}
 
 \pnum
 A \defnadj{narrowing}{conversion} is an implicit conversion
@@ -6222,7 +6347,7 @@ that would have been implicitly declared, as follows:
   if $\tcode{F}_2$ has an implicit object parameter of
   type ``reference to \tcode{C}'',
   $\tcode{F}_1$ may be an explicit object member function whose
-  explicit object parameter is of type ``reference to \tcode{C}'',
+  explicit object parameter is of (possibly different) type ``reference to \tcode{C}'',
   in which case the type of $\tcode{F}_1$ would differ from the type of $\tcode{F}_2$
   in that the type of $\tcode{F}_1$ has an additional parameter;
 \item
@@ -6252,7 +6377,7 @@ other than as allowed by the preceding rules, then:
 A function explicitly defaulted on its first declaration
 is implicitly inline\iref{dcl.inline},
 and is implicitly constexpr\iref{dcl.constexpr}
-if it satisfies the requirements for a constexpr function.
+if it is constexpr-suitable.
 
 \pnum
 \begin{example}
@@ -6300,7 +6425,7 @@ defaulted or deleted on its first declaration. A user-provided explicitly-defaul
 is implicitly defined at the point where it is explicitly defaulted; if such a function is implicitly
 defined as deleted, the program is ill-formed.
 A non-user-provided defaulted function
-(i.e. implicitly declared or explicitly defaulted in the class)
+(i.e., implicitly declared or explicitly defaulted in the class)
 that is not defined as deleted is implicitly defined when it is odr-used\iref{basic.def.odr}
 or needed for constant evaluation\iref{expr.const}.
 \begin{note}
@@ -6968,6 +7093,8 @@ An \grammarterm{opaque-enum-declaration} declaring an unscoped enumeration shall
 not omit the \grammarterm{enum-base}.
 The identifiers in an \grammarterm{enumerator-list} are declared as
 constants, and can appear wherever constants are required.
+The same identifier shall not appear as
+the name of multiple enumerators in an \grammarterm{enumerator-list}.
 \indextext{enumerator!value of}%
 An \grammarterm{enumerator-definition} with \tcode{=} gives the associated
 \grammarterm{enumerator} the value indicated by the
@@ -7162,7 +7289,7 @@ Each unnamed enumeration with no enumerators is a distinct type.
 \begin{codeblock}
 enum direction { left='l', right='r' };
 
-void g()  {
+void g() {
   direction d;                  // OK
   d = left;                     // OK
   d = direction::right;         // OK
@@ -7170,7 +7297,7 @@ void g()  {
 
 enum class altitude { high='h', low='l' };
 
-void h()  {
+void h() {
   altitude a;                   // OK
   a = high;                     // error: \tcode{high} not in scope
   a = altitude::low;            // OK
@@ -7877,6 +8004,22 @@ void f() {
 \pnum
 If a declaration is named by two \grammarterm{using-declarator}s
 that inhabit the same class scope, the program is ill-formed.
+\begin{example}
+\begin{codeblock}
+struct C {
+  int i;
+};
+
+struct D1 : C { };
+struct D2 : C { };
+
+struct D3 : D1, D2 {
+  using D1::i;                  // OK, equivalent to \tcode{using C::i}
+  using D1::i;                  // error: duplicate
+  using D2::i;                  // error: duplicate, also names \tcode{C::i}
+};
+\end{codeblock}
+\end{example}
 
 \pnum
 \begin{note}
@@ -7912,9 +8055,21 @@ void bar() {
 
 \pnum
 If a declaration named by a \grammarterm{using-declaration}
-that inhabits the target scope of another declaration
+that inhabits the target scope of another declaration $B$
 potentially conflicts with it\iref{basic.scope.scope}, and
-either is reachable from the other, the program is ill-formed.
+either is reachable from the other, the program is ill-formed
+unless $B$ is name-independent and
+the \grammarterm{using-declaration} precedes $B$.
+\begin{example}
+\begin{codeblock}
+int _;
+void f() {
+  int _;                // B
+  _ = 0;
+  using ::_;            // error: \grammarterm{using-declaration} does not precede B
+}
+\end{codeblock}
+\end{example}
 If two declarations named by \grammarterm{using-declaration}s
 that inhabit the same scope potentially conflict,
 either is reachable from the other, and
@@ -7959,6 +8114,7 @@ void func() {
   using A::h;                           // error: conflicts
   using B::x;
   using A::x;                           // OK, hides \tcode{struct B::x}
+  using A::x;                           // OK, does not conflict with previous \tcode{using A::x}
   x = 99;                               // assigns to \tcode{A::x}
   struct x x1;                          // \tcode{x1} has class type \tcode{B::x}
 }
@@ -8120,11 +8276,12 @@ public:
 An \tcode{asm} declaration has the form
 \begin{bnf}
 \nontermdef{asm-declaration}\br
-    \opt{attribute-specifier-seq} \keyword{asm} \terminal{(} string-literal \terminal{)} \terminal{;}
+    \opt{attribute-specifier-seq} \keyword{asm} \terminal{(} balanced-token-seq \terminal{)} \terminal{;}
 \end{bnf}
 
-The \tcode{asm} declaration is conditionally-supported; its meaning is
-\impldef{meaning of \tcode{asm} declaration}.
+The \tcode{asm} declaration is conditionally-supported;
+any restrictions on the \grammarterm{balanced-token-seq} and
+its meaning are \impldef{meaning of \tcode{asm} declaration}.
 The optional \grammarterm{attribute-specifier-seq} in
 an \grammarterm{asm-declaration} appertains to the \tcode{asm} declaration.
 \begin{note}
@@ -8160,25 +8317,30 @@ be achieved using a \grammarterm{linkage-specification}:
 %
 \begin{bnf}
 \nontermdef{linkage-specification}\br
-    \keyword{extern} string-literal \terminal{\{} \opt{declaration-seq} \terminal{\}}\br
-    \keyword{extern} string-literal name-declaration
+    \keyword{extern} unevaluated-string \terminal{\{} \opt{declaration-seq} \terminal{\}}\br
+    \keyword{extern} unevaluated-string name-declaration
 \end{bnf}
 
-The \grammarterm{string-literal} indicates the required language linkage.
-This document specifies the semantics for the
-\grammarterm{string-literal}{s} \tcode{"C"} and \tcode{"C++"}. Use of a
-\grammarterm{string-literal} other than \tcode{"C"} or \tcode{"C++"} is
-conditionally-supported, with \impldef{semantics of linkage specifiers} semantics.
+The \grammarterm{unevaluated-string} indicates the required language linkage.
 \begin{note}
-Therefore, a linkage-specification with a \grammarterm{string-literal} that
-is unknown to the implementation requires a diagnostic.
+Escape sequences and \grammarterm{universal-character-name}s
+have been replaced\iref{lex.string.uneval}.
+\end{note}
+This document specifies the semantics for the
+\grammarterm{unevaluated-string}{s} \tcode{"C"} and \tcode{"C++"}.
+Use of an \grammarterm{unevaluated-string}
+other than \tcode{"C"} or \tcode{"C++"} is conditionally-supported,
+with \impldef{semantics of linkage specifiers} semantics.
+\begin{note}
+Therefore, a \grammarterm{linkage-specification} with a language linkage
+that is unknown to the implementation requires a diagnostic.
 \end{note}
 
 \recommended
-The spelling of the \grammarterm{string-literal} should be
-taken from the document defining that language. For example, \tcode{Ada}
-(not \tcode{ADA}) and \tcode{Fortran} or \tcode{FORTRAN}, depending on
-the vintage.
+The spelling of the language linkage should be taken
+from the document defining that language.
+For example, \tcode{Ada} (not \tcode{ADA}) and
+\tcode{Fortran} or \tcode{FORTRAN}, depending on the vintage.
 
 \pnum
 \indextext{specification!linkage!implementation-defined}%
@@ -8251,7 +8413,7 @@ A C language linkage is ignored
 in determining the language linkage of
 class members,
 friend functions with a trailing \grammarterm{requires-clause}, and the
-function type of class member functions.
+function type of non-static class member functions.
 \begin{example}
 \begin{codeblock}
 extern "C" typedef void FUNC_c();
@@ -8422,6 +8584,7 @@ such as types, variables, names, blocks, or translation units.
 \end{bnf}
 
 \begin{bnf}
+\microtypesetup{protrusion=false}\obeyspaces
 \nontermdef{balanced-token}\br
     \terminal{(} \opt{balanced-token-seq} \terminal{)}\br
     \terminal{[} \opt{balanced-token-seq} \terminal{]}\br
@@ -8488,7 +8651,7 @@ entity or statement, the program is ill-formed. If an \grammarterm{attribute-spe
 appertains to a friend declaration\iref{class.friend}, that declaration shall be a
 definition.
 \begin{note}
-An \grammarterm{attribute-specifier-seq} cannot appeartain to
+An \grammarterm{attribute-specifier-seq} cannot appertain to
 an explicit instantiation\iref{temp.explicit}.
 \end{note}
 
@@ -8504,6 +8667,17 @@ A program is ill-formed if it contains an \grammarterm{attribute}
 specified in \ref{dcl.attr} that violates
 the rules specifying to which entity or statement the attribute can apply or
 the syntax rules for the attribute's \grammarterm{attribute-argument-clause}, if any.
+\end{note}
+\begin{note}
+The \grammarterm{attribute}{s} specified in \ref{dcl.attr}
+have optional semantics:
+given a well-formed program,
+removing all instances of any one of those \grammarterm{attribute}{s}
+results in a program whose set of possible executions\iref{intro.abstract}
+for a given input is
+a subset of those of the original program for the same input,
+absent implementation-defined guarantees
+with respect to that \grammarterm{attribute}.
 \end{note}
 An \grammarterm{attribute-token} is reserved for future standardization if
 \begin{itemize}
@@ -8660,6 +8834,11 @@ to analyze the form of the expression and
 deduce information used to optimize the program.
 Implementations are not required to deduce
 any information from any particular assumption.
+It is expected that the value of
+a \grammarterm{has-attribute-expression} for the \tcode{assume} attribute
+is \tcode{0}
+if an implementation does not attempt to deduce
+any such information from assumptions.
 \end{note}
 \begin{example}
 \begin{codeblock}
@@ -8769,10 +8948,10 @@ unsafe.
 An
 \grammarterm{attribute-argument-clause} may be present and, if present, it shall have the form:
 \begin{ncbnf}
-\terminal{(} string-literal \terminal{)}
+\terminal{(} unevaluated-string \terminal{)}
 \end{ncbnf}
 \begin{note}
-The \grammarterm{string-literal} in the \grammarterm{attribute-argument-clause}
+The \grammarterm{unevaluated-string} in the \grammarterm{attribute-argument-clause}
 can be used to explain the rationale for deprecation and/or to suggest a replacing entity.
 \end{note}
 
@@ -8808,6 +8987,10 @@ message in case the program refers to a name or entity other than to declare it,
 declaration that specifies the attribute. The diagnostic message should include the text provided
 within the \grammarterm{attribute-argument-clause} of any \tcode{deprecated} attribute applied
 to the name or entity.
+The value of
+a \grammarterm{has-attribute-expression} for the \tcode{deprecated} attribute
+should be \tcode{0}
+unless the implementation can issue such diagnostic messages.
 
 \rSec2[dcl.attr.fallthrough]{Fallthrough attribute}
 \indextext{attribute!fallthrough}
@@ -8834,6 +9017,10 @@ The use of a fallthrough statement should suppress
 a warning that an implementation might otherwise issue
 for a case or default label that is reachable
 from another case or default label along some path of execution.
+The value of
+a \grammarterm{has-attribute-expression} for the \tcode{fallthrough} attribute
+should be \tcode{0}
+if the attribute does not cause suppression of such warnings.
 Implementations should issue a warning
 if a fallthrough statement is not dynamically reachable.
 
@@ -8883,7 +9070,7 @@ shall not appear in an \grammarterm{attribute-specifier-seq}
 that contains the \grammarterm{attribute-token} \tcode{unlikely}.
 
 \pnum
-\recommended
+\begin{note}
 The use of the \tcode{likely} attribute
 is intended to allow implementations to optimize for
 the case where paths of execution including it
@@ -8896,8 +9083,14 @@ the case where paths of execution including it
 are arbitrarily more unlikely
 than any alternative path of execution
 that does not include such an attribute on a statement or label.
+It is expected that the value of a \grammarterm{has-attribute-expression}
+for the \tcode{likely} and \tcode{unlikely} attributes
+is \tcode{0}
+if the implementation does not attempt to use these attributes
+for such optimizations.
 A path of execution includes a label
 if and only if it contains a jump to that label.
+\end{note}
 \begin{note}
 Excessive usage of either of these attributes
 is liable to result in performance degradation.
@@ -8958,6 +9151,10 @@ are used or unused.
 For a structured binding declaration not marked \tcode{maybe_unused},
 implementations should not emit such a warning unless
 all of its structured bindings are unused.
+The value of
+a \grammarterm{has-attribute-expression} for the \tcode{maybe_unused} attribute
+should be \tcode{0}
+if the attribute does not cause suppression of such warnings.
 
 \pnum
 \begin{example}
@@ -8983,7 +9180,7 @@ An \grammarterm{attribute-argument-clause} may be present
 and, if present, shall have the form:
 
 \begin{ncbnf}
-\terminal{(} string-literal \terminal{)}
+\terminal{(} unevaluated-string \terminal{)}
 \end{ncbnf}
 
 \pnum
@@ -9026,11 +9223,14 @@ Appearance of a nodiscard call as
 a potentially-evaluated discarded-value expression\iref{expr.prop}
 is discouraged unless explicitly cast to \keyword{void}.
 Implementations should issue a warning in such cases.
+The value of
+a \grammarterm{has-attribute-expression} for the \tcode{nodiscard} attribute
+should be \tcode{0} unless the implementation can issue such warnings.
 \begin{note}
 This is typically because discarding the return value
 of a nodiscard call has surprising consequences.
 \end{note}
-The \grammarterm{string-literal}
+The \grammarterm{unevaluated-string}
 in a \tcode{nodiscard} \grammarterm{attribute-argument-clause}
 should be used in the message of the warning
 as the rationale for why the result should not be discarded.
@@ -9088,6 +9288,9 @@ terminate by throwing an exception.
 \recommended
 Implementations should issue a
 warning if a function marked \tcode{[[noreturn]]} might return.
+The value of
+a \grammarterm{has-attribute-expression} for the \tcode{noreturn} attribute
+should be \tcode{0} unless the implementation can issue such warnings.
 
 \pnum
 \begin{example}
@@ -9122,6 +9325,14 @@ and any padding that would normally be inserted
 at the end of the object
 can be reused as storage for other members.
 \end{note}
+
+\recommended
+The value of a \grammarterm{has-attribute-expression}
+for the \tcode{no_unique_address} attribute
+should be \tcode{0} for a given implementation
+unless this attribute can cause a potentially-overlapping subobject
+to have zero size.
+
 \begin{example}
 \begin{codeblock}
 template<typename Key, typename Value,

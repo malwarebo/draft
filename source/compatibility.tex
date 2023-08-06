@@ -1,6 +1,54 @@
 %!TEX root = std.tex
 \infannex{diff}{Compatibility}
 
+\rSec1[diff.cpp23]{\Cpp{} and ISO \CppXXIII{}}
+
+\rSec2[diff.cpp23.general]{General}
+
+\pnum
+\indextext{summary!compatibility with ISO \CppXXIII{}}%
+Subclause \ref{diff.cpp23} lists the differences between \Cpp{} and
+ISO \CppXXIII{} (ISO/IEC 14882:2023, \doccite{Programming Languages --- \Cpp{}}),
+by the chapters of this document.
+
+\rSec2[diff.cpp23.expr]{\ref{expr}: expressions}
+
+\diffref{dcl.init.list}
+\change
+Pointer comparisons between \tcode{initializer_list} objects' backing arrays
+are unspecified.
+\rationale
+Permit the implementation to store backing arrays in static read-only memory.
+\effect
+Valid \CppXXIII{} code
+that relies on the result of pointer comparison between backing arrays
+may change behavior.
+For example:
+\begin{codeblock}
+bool ne(std::initializer_list<int> a, std::initializer_list<int> b) {
+  return a.begin() != b.begin() + 1;
+}
+bool b = ne({2,3}, {1,2,3});    // unspecified result; previously \tcode{false}
+\end{codeblock}
+
+\rSec2[diff.cpp23.strings]{\ref{strings}: strings library}
+
+\diffref{string.conversions}
+\change
+Output of floating-point overloads of \tcode{to_string} and \tcode{to_wstring}.
+\rationale
+Prevent loss of information and improve consistency with other formatting
+facilities.
+\effect
+\tcode{to_string} and \tcode{to_wstring} function calls that take
+floating-point arguments may produce a different output.
+For example:
+\begin{codeblock}
+auto s = std::to_string(1e-7);  // \tcode{"1e-07"}
+                                // previously \tcode{"0.000000"} with \tcode{'.'} possibly
+                                // changed according to the global C locale
+\end{codeblock}
+
 \rSec1[diff.cpp20]{\Cpp{} and ISO \CppXX{}}
 
 \rSec2[diff.cpp20.general]{General}
@@ -189,6 +237,20 @@ bool test(shared_ptr<int> p) {
 }
 \end{codeblock}
 
+\rSec2[diff.cpp20.memory]{\ref{mem}: memory management library}
+
+\diffref{allocator.traits.general}
+\change
+Forbid partial and explicit program-defined specializations
+of \tcode{allocator_traits}.
+\rationale
+Allow addition of \tcode{allocate_at_least} to \tcode{allocator_traits},
+and potentially other members in the future.
+\effect
+Valid \CppXX{} code
+that partially or explicitly specializes \tcode{allocator_traits}
+is ill-formed with no diagnostic required in this revision of \Cpp{}.
+
 \rSec2[diff.cpp20.utilities]{\ref{utilities}: general utilities library}
 
 \diffref{format}
@@ -230,6 +292,37 @@ struct tiny {
 auto t = tiny();
 std::format("{}", t.bit);       // ill-formed, previously returned \tcode{"0"}
 \end{codeblock}
+
+\diffref{format.string.std}
+\change
+Restrict types of formatting arguments
+used as \fmtgrammarterm{width} or \fmtgrammarterm{precision} in
+a \fmtgrammarterm{std-format-spec}.
+\rationale
+Disallow types that do not have useful or portable semantics as
+a formatting width or precision.
+\effect
+Valid \CppXX{} code that passes a boolean or character type as
+\fmtgrammarterm{arg-id} becomes invalid.
+For example:
+\begin{codeblock}
+std::format("{:*^{}}", "", true);   // ill-formed, previously returned \tcode{"*"}
+std::format("{:*^{}}", "", '1');    // ill-formed, previously returned an
+                                    // implementation-defined number of \tcode{'*'} characters
+\end{codeblock}
+
+\diffref{format.formatter.spec}
+\change
+Removed the \tcode{formatter} specialization:
+\begin{codeblock}
+template<size_t N> struct formatter<const charT[N], charT>;
+\end{codeblock}
+\rationale
+The specialization is inconsistent with the design of \tcode{formatter},
+which is intended to be instantiated only with cv-unqualified object types.
+\effect
+Valid \CppXX{} code that instantiated the removed specialization
+can become ill-formed.
 
 \rSec2[diff.cpp20.strings]{\ref{strings}: strings library}
 
@@ -275,6 +368,40 @@ struct D : private B {
     s.erase(*this);             // ill formed; previously well-formed
   }
 };
+\end{codeblock}
+
+\rSec2[diff.cpp20.thread]{\ref{thread}: concurrency support library}
+
+\diffref{thread.barrier}
+\change
+In this revision of \Cpp{},
+it is implementation-defined whether a barrier's phase completion step runs
+if no thread calls \tcode{wait}.
+Previously the phase completion step was guaranteed to run on the last thread that calls \tcode{arrive} or \tcode{arrive_and_drop} during the phase.
+In this revision of \Cpp{},
+it can run on any of the threads that arrived or waited at the barrier
+during the phase.
+\rationale
+Correct contradictory wording and
+improve implementation flexibility for performance.
+\effect
+Valid \CppXX{} code using a barrier might have
+different semantics in this revision of \Cpp{}
+if it depends on a completion function's side effects occurring exactly once,
+on a specific thread running the phase completion step, or
+on a completion function's side effects occurring
+without \tcode{wait} having been called.
+For example:
+\begin{codeblock}
+auto b0 = std::barrier(1);
+b0.arrive();
+b0.arrive();            // implementation-defined; previously well-defined
+
+int data = 0;
+auto b1 = std::barrier(1, [&] { data++; });
+b1.arrive();
+assert(data == 1);      // implementation-defined; previously well-defined
+b1.arrive();            // implementation-defined; previously well-defined
 \end{codeblock}
 
 \rSec1[diff.cpp17]{\Cpp{} and ISO \CppXVII{}}
@@ -733,7 +860,7 @@ void f() {}
 int main() {
   A a;
   f < a;    // ill-formed; previously well-formed
-  (f) < a;  // still well formed
+  (f) < a;  // still well-formed
 }
 \end{codeblock}
 
@@ -998,7 +1125,7 @@ Remove \tcode{shared_ptr::unique}.
 The result of a call to this member function is not reliable in the presence of
 multiple threads and weak pointers. The member function \tcode{use_count} is
 similarly unreliable, but has a clearer contract in such cases, and remains
-available for well defined use in single-threaded cases.
+available for well-defined use in single-threaded cases.
 \effect
 A valid \CppXVII{} program that calls \tcode{unique} on a \tcode{shared_ptr}
 object may fail to compile.

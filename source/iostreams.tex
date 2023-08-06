@@ -27,7 +27,7 @@ as summarized in \tref{iostreams.summary}.
 \ref{iostreams.base}          & Iostreams base classes      & \tcode{<ios>}        \\ \rowsep
 \ref{stream.buffers}          & Stream buffers              & \tcode{<streambuf>}  \\ \rowsep
 \ref{iostream.format}         & Formatting and manipulators &
-  \tcode{<iomanip>}, \tcode{<istream>}, \tcode{<ostream>}   \\ \rowsep
+  \tcode{<istream>}, \tcode{<ostream>}, \tcode{<iomanip>}, \tcode{<print>}   \\ \rowsep
 \ref{string.streams}          & String streams              & \tcode{<sstream>}    \\ \rowsep
 \ref{span.streams}            & Span-based streams          & \tcode{<spanstream>} \\ \rowsep
 \ref{file.streams}            & File streams                & \tcode{<fstream>}    \\ \rowsep
@@ -506,6 +506,17 @@ initialize the objects earlier than required.
 The results of including \libheader{iostream} in a translation unit shall be as if
 \libheader{iostream} defined an instance of \tcode{ios_base::Init} with static
 storage duration.
+Each \Cpp{} library module\iref{std.modules} in a hosted implementation
+shall behave as if it contains an interface unit that
+defines an unexported \tcode{ios_base::Init} variable with
+ordered initialization\iref{basic.start.dynamic}.
+
+\begin{note}
+As a result, the definition of that variable is appearance-ordered before
+any declaration following the point of importation of a \Cpp{} library module.
+Whether such a definition exists is unobservable by a program that
+does not reference any of the standard iostream objects.
+\end{note}
 
 \pnum
 Mixing operations on corresponding wide- and narrow-character streams
@@ -4449,7 +4460,7 @@ basic_istream& operator=(basic_istream&& rhs);
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{swap(rhs)}.
+Equivalent to \tcode{swap(rhs)}.
 
 \pnum
 \returns
@@ -5819,7 +5830,7 @@ basic_iostream(basic_iostream&& rhs);
 \effects
 Move constructs from the rvalue \tcode{rhs} by
 constructing the \tcode{basic_istream} base class with
-\tcode{move(rhs)}.
+\tcode{std::move(rhs)}.
 \end{itemdescr}
 
 \rSec4[iostream.dest]{Destructor}
@@ -5846,7 +5857,7 @@ basic_iostream& operator=(basic_iostream&& rhs);
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{swap(rhs)}.
+Equivalent to \tcode{swap(rhs)}.
 \end{itemdescr}
 
 \indexlibrarymember{swap}{basic_iostream}%
@@ -6119,7 +6130,7 @@ basic_ostream& operator=(basic_ostream&& rhs);
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{swap(rhs)}.
+Equivalent to \tcode{swap(rhs)}.
 
 \pnum
 \returns
@@ -6850,7 +6861,7 @@ For \tcode{vprint_unicode},
 if invoking the native Unicode API requires transcoding,
 implementations should substitute invalid code units
 with \unicode{fffd}{replacement character} per
-The Unicode Standard Version 14.0 - Core Specification, Chapter 3.9.
+the Unicode Standard, Chapter 3.9 \ucode{fffd} Substitution in Conversion.
 \end{itemdescr}
 
 \rSec3[ostream.unformatted]{Unformatted output functions}
@@ -7786,7 +7797,7 @@ May throw \tcode{bad_alloc}.
 If invoking the native Unicode API requires transcoding,
 implementations should substitute invalid code units
 with \unicode{fffd}{replacement character} per
-The Unicode Standard Version 14.0 - Core Specification, Chapter 3.9.
+the Unicode Standard, Chapter 3.9 \ucode{fffd} Substitution in Conversion.
 \end{itemdescr}
 
 \indexlibraryglobal{vprint_nonunicode}%
@@ -7941,6 +7952,13 @@ namespace std {
       explicit basic_stringbuf(
         const basic_string<charT, traits, SAlloc>& s,
         ios_base::openmode which = ios_base::in | ios_base::out);
+    template<class T>
+      explicit basic_stringbuf(const T& t,
+                               ios_base::openmode which = ios_base::in | ios_base::out);
+    template<class T>
+      basic_stringbuf(const T& t, const Allocator& a);
+    template<class T>
+      basic_stringbuf(const T& t, ios_base::openmode which, const Allocator& a);
     basic_stringbuf(const basic_stringbuf&) = delete;
     basic_stringbuf(basic_stringbuf&& rhs);
     basic_stringbuf(basic_stringbuf&& rhs, const Allocator& a);
@@ -7963,6 +7981,8 @@ namespace std {
     template<class SAlloc>
       void str(const basic_string<charT, traits, SAlloc>& s);
     void str(basic_string<charT, traits, Allocator>&& s);
+    template<class T>
+      void str(const T& t);
 
   protected:
     // \ref{stringbuf.virtuals}, overridden virtual functions
@@ -8133,6 +8153,37 @@ then calls \tcode{init_buf_ptrs()}.
 
 \indexlibraryctor{basic_stringbuf}%
 \begin{itemdecl}
+template<class T>
+  explicit basic_stringbuf(const T& t, ios_base::openmode which = ios_base::in | ios_base::out);
+template<class T>
+  basic_stringbuf(const T& t, const Allocator& a);
+template<class T>
+  basic_stringbuf(const T& t, ios_base::openmode which, const Allocator& a);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{which} be \tcode{ios_base::in | ios_base::out}
+for the overload with no parameter \tcode{which}, and
+\tcode{a} be \tcode{Allocator()} for the overload with no parameter \tcode{a}.
+
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Creates a variable \tcode{sv} as if by
+\tcode{basic_string_view<charT, traits> sv = t},
+then value-initializes the base class,
+initializes \tcode{mode} with \tcode{which}, and
+direct-non-list-initializes \tcode{buf} with \tcode{sv, a},
+then calls \tcode{init_buf_ptrs()}.
+\end{itemdescr}
+
+\indexlibraryctor{basic_stringbuf}%
+\begin{itemdecl}
 basic_stringbuf(basic_stringbuf&& rhs);
 basic_stringbuf(basic_stringbuf&& rhs, const Allocator& a);
 \end{itemdecl}
@@ -8216,7 +8267,7 @@ and \tcode{rhs}.
 \remarks
 The exception specification is equivalent to:\\
 \tcode{allocator_traits<Allocator>::propagate_on_container_swap::value ||}\\
-\tcode{allocator_traits<Allocator>::is_always_equal::value}.
+\tcode{allocator_traits<Allocator>::is_always_equal::value}
 \end{itemdescr}
 
 \indexlibrarymember{swap}{basic_stringbuf}%
@@ -8229,7 +8280,7 @@ template<class charT, class traits, class Allocator>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[stringbuf.members]{Member functions}
@@ -8322,7 +8373,7 @@ template<class SAlloc>
 \pnum
 \constraints
 \tcode{SAlloc} is a type that
-qualifies as an allocator\iref{container.requirements.general}.
+qualifies as an allocator\iref{container.reqmts}.
 
 \pnum
 \effects
@@ -8429,6 +8480,28 @@ void str(basic_string<charT, traits, Allocator>&& s);
 Equivalent to:
 \begin{codeblock}
 buf = std::move(s);
+init_buf_ptrs();
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{str}{basic_stringbuf}%
+\begin{itemdecl}
+template<class T>
+  void str(const T& t);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+basic_string_view<charT, traits> sv = t;
+buf = sv;
 init_buf_ptrs();
 \end{codeblock}
 \end{itemdescr}
@@ -8738,6 +8811,12 @@ namespace std {
       explicit basic_istringstream(
         const basic_string<charT, traits, SAlloc>& s,
         ios_base::openmode which = ios_base::in);
+    template<class T>
+      explicit basic_istringstream(const T& t, ios_base::openmode which = ios_base::in);
+    template<class T>
+      basic_istringstream(const T& t, const Allocator& a);
+    template<class T>
+      basic_istringstream(const T& t, ios_base::openmode which, const Allocator& a);
     basic_istringstream(const basic_istringstream&) = delete;
     basic_istringstream(basic_istringstream&& rhs);
 
@@ -8759,6 +8838,8 @@ namespace std {
     template<class SAlloc>
       void str(const basic_string<charT, traits, SAlloc>& s);
     void str(basic_string<charT, traits, Allocator>&& s);
+    template<class T>
+      void str(const T& t);
 
   private:
     basic_stringbuf<charT, traits, Allocator> sb;   // \expos
@@ -8869,11 +8950,42 @@ template<class SAlloc>
 
 \begin{itemdescr}
 \pnum
+\constraints
+\tcode{is_same_v<SAlloc, Allocator>} is \tcode{false}.
+
+\pnum
 \effects
 Initializes the base class with
 \tcode{basic_istream<charT, traits>(addressof(sb))}\iref{istream}
 and \tcode{sb} with
 \tcode{basic_stringbuf<charT, traits, Allocator>(s, which | ios_base::in)}\iref{stringbuf.cons}.
+\end{itemdescr}
+
+\indexlibraryctor{basic_istringstream}%
+\begin{itemdecl}
+template<class T>
+  explicit basic_istringstream(const T& t, ios_base::openmode which = ios_base::in);
+template<class T>
+  basic_istringstream(const T& t, const Allocator& a);
+template<class T>
+  basic_istringstream(const T& t, ios_base::openmode which, const Allocator& a);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{which} be \tcode{ios_base::in}
+for the overload with no parameter \tcode{which}, and
+\tcode{a} be \tcode{Allocator()} for the overload with no parameter \tcode{a}.
+
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Initializes the base class with \tcode{addressof(sb)}, and
+direct-non-list-initializes \tcode{sb} with \tcode{t, which | ios_base::in, a}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_istringstream}%
@@ -8919,7 +9031,7 @@ template<class charT, class traits, class Allocator>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[istringstream.members]{Member functions}
@@ -9007,10 +9119,28 @@ Equivalent to: \tcode{rdbuf()->str(s);}
 \begin{itemdecl}
 void str(basic_string<charT, traits, Allocator>&& s);
 \end{itemdecl}
+
 \begin{itemdescr}
 \pnum
 \effects
 Equivalent to: \tcode{rdbuf()->str(std::move(s));}
+\end{itemdescr}
+
+\indexlibrarymember{str}{basic_istringstream}%
+\begin{itemdecl}
+template<class T>
+  void str(const T& t);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to: \tcode{rdbuf()->str(t);}
 \end{itemdescr}
 
 \rSec2[ostringstream]{Class template \tcode{basic_ostringstream}}
@@ -9053,6 +9183,12 @@ namespace std {
       explicit basic_ostringstream(
         const basic_string<charT, traits, SAlloc>& s,
         ios_base::openmode which = ios_base::out);
+    template<class T>
+      explicit basic_ostringstream(const T& t, ios_base::openmode which = ios_base::out);
+    template<class T>
+      basic_ostringstream(const T& t, const Allocator& a);
+    template<class T>
+      basic_ostringstream(const T& t, ios_base::openmode which, const Allocator& a);
     basic_ostringstream(const basic_ostringstream&) = delete;
     basic_ostringstream(basic_ostringstream&& rhs);
 
@@ -9075,6 +9211,8 @@ namespace std {
     template<class SAlloc>
       void str(const basic_string<charT, traits, SAlloc>& s);
     void str(basic_string<charT, traits, Allocator>&& s);
+    template<class T>
+      void str(const T& t);
 
    private:
     basic_stringbuf<charT, traits, Allocator> sb;   // \expos
@@ -9198,6 +9336,33 @@ and \tcode{sb} with
 
 \indexlibraryctor{basic_ostringstream}%
 \begin{itemdecl}
+template<class T>
+  explicit basic_ostringstream(const T& t, ios_base::openmode which = ios_base::out);
+template<class T>
+  basic_ostringstream(const T& t, const Allocator& a);
+template<class T>
+  basic_ostringstream(const T& t, ios_base::openmode which, const Allocator& a);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{which} be \tcode{ios_base::out}
+for the overload with no parameter \tcode{which}, and
+\tcode{a} be \tcode{Allocator()} for the overload with no parameter \tcode{a}.
+
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Initializes the base class with \tcode{addressof(sb)}, and
+direct-non-list-initializes \tcode{sb} with \tcode{t, which | ios_base::out, a}.
+\end{itemdescr}
+
+\indexlibraryctor{basic_ostringstream}%
+\begin{itemdecl}
 basic_ostringstream(basic_ostringstream&& rhs);
 \end{itemdecl}
 
@@ -9238,7 +9403,7 @@ template<class charT, class traits, class Allocator>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[ostringstream.members]{Member functions}
@@ -9333,6 +9498,23 @@ void str(basic_string<charT, traits, Allocator>&& s);
 Equivalent to: \tcode{rdbuf()->str(std::move(s));}
 \end{itemdescr}
 
+\indexlibrarymember{str}{basic_ostringstream}%
+\begin{itemdecl}
+template<class T>
+  void str(const T& t);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to: \tcode{rdbuf()->str(t);}
+\end{itemdescr}
+
 \rSec2[stringstream]{Class template \tcode{basic_stringstream}}
 
 \rSec3[stringstream.general]{General}
@@ -9373,6 +9555,13 @@ namespace std {
       explicit basic_stringstream(
         const basic_string<charT, traits, SAlloc>& s,
         ios_base::openmode which = ios_base::out | ios_base::in);
+    template<class T>
+      explicit basic_stringstream(const T& t,
+                                  ios_base::openmode which = ios_base::out | ios_base::in);
+    template<class T>
+      basic_stringstream(const T& t, const Allocator& a);
+    template<class T>
+      basic_stringstream(const T& t, ios_base::openmode which, const Allocator& a);
     basic_stringstream(const basic_stringstream&) = delete;
     basic_stringstream(basic_stringstream&& rhs);
 
@@ -9395,6 +9584,8 @@ namespace std {
     template<class SAlloc>
       void str(const basic_string<charT, traits, SAlloc>& s);
     void str(basic_string<charT, traits, Allocator>&& s);
+    template<class T>
+      void str(const T& t);
 
   private:
     basic_stringbuf<charT, traits> sb;  // \expos
@@ -9523,6 +9714,33 @@ and \tcode{sb} with
 
 \indexlibraryctor{basic_stringstream}%
 \begin{itemdecl}
+template<class T>
+  explicit basic_stringstream(const T& t, ios_base::openmode which = ios_base::out | ios_base::in);
+template<class T>
+  basic_stringstream(const T& t, const Allocator& a);
+template<class T>
+  basic_stringstream(const T& t, ios_base::openmode which, const Allocator& a);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Let \tcode{which} be \tcode{ios_base::out | ios_base::in}
+for the overload with no parameter \tcode{which}, and
+\tcode{a} be \tcode{Allocator()} for the overload with no parameter \tcode{a}.
+
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Initializes the base class with \tcode{addressof(sb)}, and
+direct-non-list-initializes \tcode{sb} with \tcode{t, which, a}.
+\end{itemdescr}
+
+\indexlibraryctor{basic_stringstream}%
+\begin{itemdecl}
 basic_stringstream(basic_stringstream&& rhs);
 \end{itemdecl}
 
@@ -9563,7 +9781,7 @@ template<class charT, class traits, class Allocator>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[stringstream.members]{Member functions}
@@ -9656,6 +9874,23 @@ void str(basic_string<charT, traits, Allocator>&& s);
 \pnum
 \effects
 Equivalent to: \tcode{rdbuf()->str(std::move(s));}
+\end{itemdescr}
+
+\indexlibrarymember{str}{basic_stringstream}%
+\begin{itemdecl}
+template<class T>
+  void str(const T&);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{is_convertible_v<const T\&, basic_string_view<charT, traits>>}
+is \tcode{true}.
+
+\pnum
+\effects
+Equivalent to: \tcode{rdbuf()->str(t);}
 \end{itemdescr}
 
 \rSec1[span.streams]{Span-based streams}
@@ -10149,7 +10384,7 @@ is \tcode{true}.
 \pnum
 \effects
 Let \tcode{sp} be \tcode{std::span<const charT>(std::forward<ROS>(s))}.
-Equivalent to
+Equivalent to:
 \begin{codeblock}
 basic_ispanstream(std::span<charT>(const_cast<charT*>(sp.data()), sp.size()))
 \end{codeblock}
@@ -10238,7 +10473,7 @@ is \tcode{true}.
 Let \tcode{sp} be \tcode{std::span<const charT>(std::forward<ROS>(s))}.
 Equivalent to:
 \begin{codeblock}
-this->span(std::span<charT>(const_cast<charT*>(sp.data()), sp.size()))
+this->span(std::span<charT>(const_cast<charT*>(sp.data()), sp.size()));
 \end{codeblock}
 \end{itemdescr}
 
@@ -10602,6 +10837,26 @@ are only provided on systems where \tcode{filesystem::path::value_type}\iref{fs.
 These functions enable class \tcode{path} support for systems with a wide native path character type, such as \keyword{wchar_t}.
 \end{note}
 
+\rSec2[file.native]{Native handles}
+
+\indexlibraryglobal{native_handle_type}%
+
+\pnum
+Several classes described in \ref{file.streams}
+have a member \tcode{native_handle_type}.
+
+\pnum
+The type \tcode{native_handle_type} represents a platform-specific
+\defnadj{native}{handle} to a file.
+It is trivially copyable and models \libconcept{semiregular}.
+
+\begin{note}
+For operating systems based on POSIX,
+\tcode{native_handle_type} is \keyword{int}.
+For Windows-based operating systems,
+\tcode{native_handle_type} is \tcode{HANDLE}.
+\end{note}
+
 \rSec2[filebuf]{Class template \tcode{basic_filebuf}}
 
 \rSec3[filebuf.general]{General}
@@ -10617,6 +10872,7 @@ namespace std {
     using pos_type    = typename traits::pos_type;
     using off_type    = typename traits::off_type;
     using traits_type = traits;
+    using native_handle_type = @\impdefx{type of \tcode{native_handle_type}}@;   // see \ref{file.native}
 
     // \ref{filebuf.cons}, constructors/destructor
     basic_filebuf();
@@ -10634,11 +10890,10 @@ namespace std {
     basic_filebuf* open(const char* s, ios_base::openmode mode);
     basic_filebuf* open(const filesystem::path::value_type* s,
                         ios_base::openmode mode);   // wide systems only; see \ref{fstream.syn}
-    basic_filebuf* open(const string& s,
-                        ios_base::openmode mode);
-    basic_filebuf* open(const filesystem::path& s,
-                        ios_base::openmode mode);
+    basic_filebuf* open(const string& s, ios_base::openmode mode);
+    basic_filebuf* open(const filesystem::path& s, ios_base::openmode mode);
     basic_filebuf* close();
+    native_handle_type native_handle() const noexcept;
 
   protected:
     // \ref{filebuf.virtuals}, overridden virtual functions
@@ -10648,16 +10903,15 @@ namespace std {
     int_type pbackfail(int_type c = traits::eof()) override;
     int_type overflow (int_type c = traits::eof()) override;
 
-    basic_streambuf<charT, traits>* setbuf(char_type* s,
-                                           streamsize n) override;
+    basic_streambuf<charT, traits>* setbuf(char_type* s, streamsize n) override;
+
     pos_type seekoff(off_type off, ios_base::seekdir way,
-                     ios_base::openmode which
-                      = ios_base::in | ios_base::out) override;
+                     ios_base::openmode which = ios_base::in | ios_base::out) override;
     pos_type seekpos(pos_type sp,
-                     ios_base::openmode which
-                      = ios_base::in | ios_base::out) override;
-    int      sync() override;
-    void     imbue(const locale& loc) override;
+                     ios_base::openmode which = ios_base::in | ios_base::out) override;
+
+    int sync() override;
+    void imbue(const locale& loc) override;
   };
 }
 \end{codeblock}
@@ -10697,6 +10951,18 @@ behaves as described in~\ref{filebuf} provided
 is
 \tcode{fpos<traits::\brk{}state_type>}.
 Otherwise the behavior is undefined.
+
+\pnum
+The file associated with a \tcode{basic_filebuf} has
+an associated value of type \tcode{native_handle_type},
+called the native handle\iref{file.native} of that file.
+This native handle can be obtained by calling
+the member function \tcode{native_handle}.
+
+\pnum
+For any opened \tcode{basic_filebuf f},
+the native handle returned by \tcode{f.native_handle()} is
+invalidated when \tcode{f.close()} is called, or \tcode{f} is destroyed.
 
 \pnum
 In order to support file I/O and multibyte/wide character conversion,
@@ -10820,7 +11086,7 @@ template<class charT, class traits>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[filebuf.members]{Member functions}
@@ -10989,6 +11255,21 @@ exception, the exception is caught and rethrown after closing the file.
 \returns
 \keyword{this}
 on success, a null pointer otherwise.
+\end{itemdescr}
+
+\indexlibrarymember{native_handle}{basic_filebuf}%
+\begin{itemdecl}
+native_handle_type native_handle() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\expects
+\tcode{is_open()} is \tcode{true}.
+
+\pnum
+\returns
+The native handle associated with \tcode{*this}.
 \end{itemdescr}
 
 \rSec3[filebuf.virtuals]{Overridden virtual functions}
@@ -11265,7 +11546,7 @@ the put buffer is non-empty.
 ``Write any unshift sequence'' means,
 if
 \tcode{width}
-if less than zero then call
+is less than zero then call
 \tcode{a_codecvt.unshift(state, xbuf, xbuf+XSIZE, xbuf_end)}
 and output the resulting unshift sequence.
 The function determines one of three values for the
@@ -11389,6 +11670,7 @@ namespace std {
     using pos_type    = typename traits::pos_type;
     using off_type    = typename traits::off_type;
     using traits_type = traits;
+    using native_handle_type = typename basic_filebuf<charT, traits>::native_handle_type;
 
     // \ref{ifstream.cons}, constructors
     basic_ifstream();
@@ -11411,6 +11693,7 @@ namespace std {
 
     // \ref{ifstream.members}, members
     basic_filebuf<charT, traits>* rdbuf() const;
+    native_handle_type native_handle() const noexcept;
 
     bool is_open() const;
     void open(const char* s, ios_base::openmode mode = ios_base::in);
@@ -11486,7 +11769,7 @@ explicit basic_ifstream(const string& s,
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{basic_ifstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_ifstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_ifstream}%
@@ -11502,7 +11785,7 @@ template<class T>
 
 \pnum
 \effects
-Equivalent to: \tcode{basic_ifstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_ifstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_ifstream}%
@@ -11543,7 +11826,7 @@ template<class charT, class traits>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[ifstream.members]{Member functions}
@@ -11557,6 +11840,17 @@ basic_filebuf<charT, traits>* rdbuf() const;
 \pnum
 \returns
 \tcode{const_cast<basic_filebuf<charT, traits>*>(addressof(sb))}.
+\end{itemdescr}
+
+\indexlibrarymember{native_handle}{basic_ifstream}%
+\begin{itemdecl}
+native_handle_type native_handle() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to: \tcode{return rdbuf()->native_handle();}
 \end{itemdescr}
 
 \indexlibrarymember{is_open}{basic_ifstream}%
@@ -11635,6 +11929,7 @@ namespace std {
     using pos_type    = typename traits::pos_type;
     using off_type    = typename traits::off_type;
     using traits_type = traits;
+    using native_handle_type = typename basic_filebuf<charT, traits>::native_handle_type;
 
     // \ref{ofstream.cons}, constructors
     basic_ofstream();
@@ -11657,6 +11952,7 @@ namespace std {
 
     // \ref{ofstream.members}, members
     basic_filebuf<charT, traits>* rdbuf() const;
+    native_handle_type native_handle() const noexcept;
 
     bool is_open() const;
     void open(const char* s, ios_base::openmode mode = ios_base::out);
@@ -11732,7 +12028,7 @@ explicit basic_ofstream(const string& s,
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{basic_ofstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_ofstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_ofstream}%
@@ -11748,7 +12044,7 @@ template<class T>
 
 \pnum
 \effects
-Equivalent to: \tcode{basic_ofstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_ofstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_ofstream}%
@@ -11789,7 +12085,7 @@ template<class charT, class traits>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[ofstream.members]{Member functions}
@@ -11803,6 +12099,17 @@ basic_filebuf<charT, traits>* rdbuf() const;
 \pnum
 \returns
 \tcode{const_cast<basic_filebuf<charT, traits>*>(addressof(sb))}.
+\end{itemdescr}
+
+\indexlibrarymember{native_handle}{basic_ofstream}%
+\begin{itemdecl}
+native_handle_type native_handle() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to: \tcode{return rdbuf()->native_handle();}
 \end{itemdescr}
 
 \indexlibrarymember{is_open}{basic_ofstream}%
@@ -11879,6 +12186,7 @@ namespace std {
     using pos_type    = typename traits::pos_type;
     using off_type    = typename traits::off_type;
     using traits_type = traits;
+    using native_handle_type = typename basic_filebuf<charT, traits>::native_handle_type;
 
     // \ref{fstream.cons}, constructors
     basic_fstream();
@@ -11904,6 +12212,8 @@ namespace std {
 
     // \ref{fstream.members}, members
     basic_filebuf<charT, traits>* rdbuf() const;
+    native_handle_type native_handle() const noexcept;
+
     bool is_open() const;
     void open(
       const char* s,
@@ -11988,7 +12298,7 @@ explicit basic_fstream(
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{basic_fstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_fstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_fstream}%
@@ -12004,7 +12314,7 @@ template<class T>
 
 \pnum
 \effects
-Equivalent to: \tcode{basic_fstream(s.c_str(), mode)}.
+Equivalent to \tcode{basic_fstream(s.c_str(), mode)}.
 \end{itemdescr}
 
 \indexlibraryctor{basic_fstream}%
@@ -12046,7 +12356,7 @@ template<class charT, class traits>
 \begin{itemdescr}
 \pnum
 \effects
-Equivalent to: \tcode{x.swap(y)}.
+Equivalent to \tcode{x.swap(y)}.
 \end{itemdescr}
 
 \rSec3[fstream.members]{Member functions}
@@ -12060,6 +12370,17 @@ basic_filebuf<charT, traits>* rdbuf() const;
 \pnum
 \returns
 \tcode{const_cast<basic_filebuf<charT, traits>*>(addressof(sb))}.
+\end{itemdescr}
+
+\indexlibrarymember{native_handle}{basic_fstream}%
+\begin{itemdecl}
+native_handle_type native_handle() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to: \tcode{return rdbuf()->native_handle();}
 \end{itemdescr}
 
 \indexlibrarymember{is_open}{basic_fstream}%
@@ -12510,7 +12831,7 @@ namespace std {
     ~basic_osyncstream();
 
     // assignment
-    basic_osyncstream& operator=(basic_osyncstream&&) noexcept;
+    basic_osyncstream& operator=(basic_osyncstream&&);
 
     // \ref{syncstream.osyncstream.members}, member functions
     void emit();
@@ -12739,7 +13060,7 @@ implementable, so the conformance subclauses take that into account.
 
 \rSec3[fs.conform.9945]{POSIX conformance}
 \pnum
-Some behavior is specified by reference to POSIX. How such behavior is actually implemented is unspecified.
+Some behavior is specified by reference to POSIX\@. How such behavior is actually implemented is unspecified.
 \begin{note}
 This constitutes an ``as if'' rule allowing implementations
 to call native
@@ -13599,8 +13920,8 @@ native ordinary encoding is determined by calling a Windows API function.
 \begin{note}
 This results in behavior identical to other C and \Cpp{}
 standard library functions that perform file operations using ordinary character
-strings to identify paths. Changing this behavior would be surprising and error
-prone.
+strings to identify paths. Changing this behavior would be surprising and
+error-prone.
 \end{note}
 \item \keyword{wchar_t}: The encoding is the native wide encoding.
 The method of conversion is unspecified.
@@ -15226,12 +15547,12 @@ Every other constant in the table represents a distinct bitmask element.
 \tcode{update_existing} &
     Overwrite the existing file if it is older than the replacement file.  \\ \capsep
 
-\ohdrx{2}{Option group controlling \tcode{copy} function effects for sub-directories} \\ \rowsep
+\ohdrx{2}{Option group controlling \tcode{copy} function effects for subdirectories} \\ \rowsep
 \lhdr{Constant}	& \rhdr{Meaning}	\\ \capsep
 \tcode{none} &
-    (Default) Do not copy sub-directories.  \\ \rowsep
+    (Default) Do not copy subdirectories.  \\ \rowsep
 \tcode{recursive} &
-    Recursively copy sub-directories and their contents.  \\ \capsep
+    Recursively copy subdirectories and their contents.  \\ \capsep
 
 \ohdrx{2}{Option group controlling \tcode{copy} function effects for symbolic links} \\ \rowsep
 \lhdr{Constant}	& \rhdr{Meaning}	\\ \capsep
@@ -15987,7 +16308,7 @@ path and any cached attribute values\iref{fs.class.directory.entry}
 for each file in a directory
 or in an \impldef{type of a directory-like file} directory-like file type.
 \begin{note}
-For iteration into sub-directories, see class \tcode{recursive_directory_iterator}\iref{fs.class.rec.dir.itr}.
+For iteration into subdirectories, see class \tcode{recursive_directory_iterator}\iref{fs.class.rec.dir.itr}.
 \end{note}
 
 \begin{codeblock}
@@ -16225,7 +16546,7 @@ directory_iterator end(directory_iterator) noexcept;
 An object of type \tcode{recursive_directory_iterator} provides an iterator for
 a sequence of \tcode{directory_entry} elements representing the files in a
 directory or in an \impldef{type of a directory-like file} directory-like file
-type, and its sub-directories.
+type, and its subdirectories.
 
 \begin{codeblock}
 namespace std::filesystem {
@@ -18515,15 +18836,15 @@ an argument that is a null pointer value.
 namespace std {
   using imaxdiv_t = @\seebelow@;
 
-  intmax_t imaxabs(intmax_t j);
-  imaxdiv_t imaxdiv(intmax_t numer, intmax_t denom);
+  constexpr intmax_t imaxabs(intmax_t j);
+  constexpr imaxdiv_t imaxdiv(intmax_t numer, intmax_t denom);
   intmax_t strtoimax(const char* nptr, char** endptr, int base);
   uintmax_t strtoumax(const char* nptr, char** endptr, int base);
   intmax_t wcstoimax(const wchar_t* nptr, wchar_t** endptr, int base);
   uintmax_t wcstoumax(const wchar_t* nptr, wchar_t** endptr, int base);
 
-  intmax_t abs(intmax_t);               // optional, see below
-  imaxdiv_t div(intmax_t, intmax_t);    // optional, see below
+  constexpr intmax_t abs(intmax_t);             // optional, see below
+  constexpr imaxdiv_t div(intmax_t, intmax_t);  // optional, see below
 }
 
 #define PRId@\placeholdernc{N}@ @\seebelow@
@@ -18592,15 +18913,19 @@ with the following changes:
 The header \libheader{cinttypes} includes the header \libheaderref{cstdint} instead
 of \libheader{stdint.h}, and
 \item
+\tcode{intmax_t} and \tcode{uintmax_t} are not required
+to be able to represent all values of extended integer types
+wider than \tcode{long long} and \tcode{unsigned long long}, respectively, and
+\item
 if and only if the type \tcode{intmax_t} designates an extended integer
 type\iref{basic.fundamental}, the following function signatures are added:
 \begin{codeblock}
-intmax_t abs(intmax_t);
-imaxdiv_t div(intmax_t, intmax_t);
+constexpr intmax_t abs(intmax_t);
+constexpr imaxdiv_t div(intmax_t, intmax_t);
 \end{codeblock}
 which shall have the same semantics as the function signatures
-\tcode{intmax_t imaxabs(intmax_t)} and
-\tcode{imaxdiv_t imaxdiv(intmax_t, intmax_t)}, respectively.
+\tcode{constexpr intmax_t imaxabs(intmax_t)} and
+\tcode{constexpr imaxdiv_t imaxdiv(intmax_t, intmax_t)}, respectively.
 \end{itemize}
 
 \xrefc{7.8}

@@ -141,6 +141,9 @@ namespace std {
   template<class T, class Alloc, class U, class V>
     constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // freestanding
                                                     const pair<U, V>&& pr) noexcept;
+  template<class T, class Alloc, @\exposconcept{pair-like}@ P>
+    constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // freestanding
+                                                    P&& p) noexcept;
   template<class T, class Alloc, class U>
     constexpr auto uses_allocator_construction_args(const Alloc& alloc,             // freestanding
                                                     U&& u) noexcept;
@@ -153,15 +156,11 @@ namespace std {
   // \ref{allocator.traits}, allocator traits
   template<class Alloc> struct allocator_traits;                                    // freestanding
 
-  template<class Pointer>
+  template<class Pointer, class SizeType = size_t>
   struct allocation_result {                                                        // freestanding
     Pointer ptr;
-    size_t count;
+    SizeType count;
   };
-
-  template<class Allocator>
-    [[nodiscard]] constexpr allocation_result<typename allocator_traits<Allocator>::pointer>
-      allocate_at_least(Allocator& a, size_t n);                                    // freestanding
 
   // \ref{default.allocator}, the default allocator
   template<class T> class allocator;
@@ -552,6 +551,12 @@ namespace std {
   // \ref{util.smartptr.ownerless}, class template \tcode{owner_less}
   template<class T = void> struct owner_less;
 
+  // \ref{util.smartptr.owner.hash}, struct \tcode{owner_hash}
+  struct owner_hash;
+
+  // \ref{util.smartptr.owner.equal}, struct \tcode{owner_equal}
+  struct owner_equal;
+
   // \ref{util.smartptr.enab}, class template \tcode{enable_shared_from_this}
   template<class T> class enable_shared_from_this;
 
@@ -878,7 +883,8 @@ template<class T>
 \begin{itemdescr}
 \pnum
 \mandates
-\tcode{T} is an implicit-lifetime type\iref{basic.types.general}.
+\tcode{T} is an implicit-lifetime type\iref{basic.types.general}
+and not an incomplete type\iref{term.incomplete.type}.
 
 \pnum
 \expects
@@ -928,14 +934,33 @@ template<class T>
 
 \begin{itemdescr}
 \pnum
+\mandates
+\tcode{T} is a complete type.
+
+\pnum
 \expects
-\tcode{n > 0} is \tcode{true}.
+\tcode{p} is suitably aligned for an array of \tcode{T} or is null.
+\tcode{n <= size_t(-1) / sizeof(T)} is \tcode{true}.
+If \tcode{n > 0} is \tcode{true},
+\range{(char*)p}{(char*)p + (n * sizeof(T))} denotes
+a region of allocated storage that is
+a subset of the region of storage
+reachable through\iref{basic.compound} \tcode{p}.
 
 \pnum
 \effects
-Equivalent to:
-\tcode{return *start_lifetime_as<U>(p);}
+If \tcode{n > 0} is \tcode{true},
+equivalent to
+\tcode{start_lifetime_as<U>(p)}
 where \tcode{U} is the type ``array of \tcode{n} \tcode{T}''.
+Otherwise, there are no effects.
+
+\pnum
+\returns
+A pointer to the first element of the created array,
+if any;
+otherwise,
+a pointer that compares equal to \tcode{p}\iref{expr.eq}.
 \end{itemdescr}
 
 \rSec2[allocator.tag]{Allocator argument tag}
@@ -1204,6 +1229,28 @@ return uses_allocator_construction_args<T>(alloc, piecewise_construct,
 
 \indexlibraryglobal{uses_allocator_construction_args}%
 \begin{itemdecl}
+template<class T, class Alloc, @\exposconcept{pair-like}@ P>
+  constexpr auto uses_allocator_construction_args(const Alloc& alloc, P&& p) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{remove_cv_t<T>} is a specialization of \tcode{pair} and
+\tcode{remove_cvref_t<P>} is not a specialization of \tcode{ranges::subrange}.
+
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+return uses_allocator_construction_args<T>(alloc, piecewise_construct,
+                                           forward_as_tuple(get<0>(std::forward<P>(p))),
+                                           forward_as_tuple(get<1>(std::forward<P>(p))));
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibraryglobal{uses_allocator_construction_args}%
+\begin{itemdecl}
 template<class T, class Alloc, class U>
   constexpr auto uses_allocator_construction_args(const Alloc& alloc, U&& u) noexcept;
 \end{itemdecl}
@@ -1218,9 +1265,15 @@ template<class A, class B>
 
 \pnum
 \constraints
-\tcode{remove_cv_t<T>} is a specialization of \tcode{pair}, and
+\tcode{remove_cv_t<T>} is a specialization of \tcode{pair}, and either:
+\begin{itemize}
+\item
+\tcode{remove_cvref_t<U>} is a specialization of \tcode{ranges::subrange}, or
+\item
+\tcode{U} does not satisfy \exposconcept{pair-like} and
 the expression \tcode{\exposid{FUN}(u)} is not well-formed
 when considered as an unevaluated operand.
+\end{itemize}
 
 \pnum
 Let \exposid{pair-constructor} be an exposition-only class defined as follows:
@@ -1300,6 +1353,9 @@ supplies the entire required interface.
 Thus, it is always possible to create
 a derived class from an allocator.
 \end{note}
+If a program declares
+an explicit or partial specialization of \tcode{allocator_traits},
+the program is ill-formed, no diagnostic required.
 
 \indexlibraryglobal{allocator_traits}%
 \begin{codeblock}
@@ -1328,6 +1384,8 @@ namespace std {
     [[nodiscard]] static constexpr pointer allocate(Alloc& a, size_type n);
     [[nodiscard]] static constexpr pointer allocate(Alloc& a, size_type n,
                                                     const_void_pointer hint);
+    [[nodiscard]] static constexpr allocation_result<pointer, size_type>
+      allocate_at_least(Alloc& a, size_type n);
 
     static constexpr void deallocate(Alloc& a, pointer p, size_type n);
 
@@ -1514,6 +1572,19 @@ otherwise, the instantiation of \tcode{rebind_alloc} is ill-formed.
 \tcode{a.allocate(n, hint)} if that expression is well-formed; otherwise, \tcode{a.allocate(n)}.
 \end{itemdescr}
 
+\indexlibrarymember{allocate_at_least}{allocator_traits}%
+\begin{itemdecl}
+[[nodiscard]] static constexpr allocation_result<pointer, size_type>
+  allocate_at_least(Alloc& a, size_type n);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{a.allocate_at_least(n)} if that expression is well-formed;
+otherwise, \tcode{\{a.allocate(n), n\}}.
+\end{itemdescr}
+
 \indexlibrarymember{deallocate}{allocator_traits}%
 \begin{itemdecl}
 static constexpr void deallocate(Alloc& a, pointer p, size_type n);
@@ -1586,19 +1657,6 @@ well-formed; otherwise, \tcode{rhs}.
 The class template \tcode{allocation_result} has
 the template parameters, data members, and special members specified above.
 It has no base classes or members other than those specified.
-
-\begin{itemdecl}
-template<class Allocator>
-[[nodiscard]] constexpr allocation_result<typename allocator_traits<Allocator>::pointer>
-  allocate_at_least(Allocator& a, size_t n);
-\end{itemdecl}
-
-\begin{itemdescr}
-\pnum
-\returns
-\tcode{a.allocate_at_least(n)} if that expression is well-formed;
-otherwise, \tcode{\{a.allocate(n), n\}}.
-\end{itemdescr}
 
 \rSec2[default.allocator]{The default allocator}
 
@@ -3175,6 +3233,11 @@ namespace std {
       bool owner_before(const shared_ptr<U>& b) const noexcept;
     template<class U>
       bool owner_before(const weak_ptr<U>& b) const noexcept;
+    size_t owner_hash() const noexcept;
+    template<class U>
+      bool owner_equal(const shared_ptr<U>& b) const noexcept;
+    template<class U>
+      bool owner_equal(const weak_ptr<U>& b) const noexcept;
   };
 
   template<class T>
@@ -3781,14 +3844,45 @@ template<class U> bool owner_before(const weak_ptr<U>& b) const noexcept;
 \returns
 An unspecified value such that
 \begin{itemize}
-\item \tcode{x.owner_before(y)} defines a strict weak ordering as defined in~\ref{alg.sorting};
-
-\item under the equivalence relation defined by \tcode{owner_before},
-\tcode{!a.owner_before(b) \&\& !b.owner_before(a)}, two \tcode{shared_ptr} or
-\tcode{weak_ptr} instances are equivalent if and only if they share ownership or
-are both empty.
+\item
+\tcode{owner_before(b)} defines a strict weak ordering as defined in~\ref{alg.sorting};
+\item
+\tcode{!owner_before(b) \&\& !b.owner_before(*this)} is \tcode{true}
+if and only if \tcode{owner_equal(b)} is \tcode{true}.
 \end{itemize}
+\end{itemdescr}
 
+\indexlibrarymember{owner_hash}{shared_ptr}%
+\begin{itemdecl}
+size_t owner_hash() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+An unspecified value such that,
+for any object \tcode{x} where \tcode{owner_equal(x)} is \tcode{true},
+\tcode{owner_hash() == x.owner_hash()} is \tcode{true}.
+\end{itemdescr}
+
+\indexlibrarymember{owner_equal}{shared_ptr}%
+\begin{itemdecl}
+template<class U>
+  bool owner_equal(const shared_ptr<U>& b) const noexcept;
+template<class U>
+  bool owner_equal(const weak_ptr<U>& b) const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{true} if and only if
+\tcode{*this} and \tcode{b} share ownership or are both empty.
+Otherwise returns \tcode{false}.
+
+\pnum
+\remarks
+\tcode{owner_equal} is an equivalence relation.
 \end{itemdescr}
 
 \rSec4[util.smartptr.shared.create]{Creation}
@@ -4459,6 +4553,11 @@ namespace std {
       bool owner_before(const shared_ptr<U>& b) const noexcept;
     template<class U>
       bool owner_before(const weak_ptr<U>& b) const noexcept;
+    size_t owner_hash() const noexcept;
+    template<class U>
+      bool owner_equal(const shared_ptr<U>& b) const noexcept;
+    template<class U>
+      bool owner_equal(const weak_ptr<U>& b) const noexcept;
   };
 
   template<class T>
@@ -4659,15 +4758,45 @@ template<class U> bool owner_before(const weak_ptr<U>& b) const noexcept;
 \returns
 An unspecified value such that
 \begin{itemize}
-\item \tcode{x.owner_before(y)} defines a strict weak ordering as defined in~\ref{alg.sorting};
+\item \tcode{owner_before(b)} defines a strict weak ordering as defined in~\ref{alg.sorting};
 
-\item under the equivalence relation defined by \tcode{owner_before},
-\tcode{!a.owner_before(b) \&\& !b.owner_before(a)}, two \tcode{shared_ptr} or
-\tcode{weak_ptr} instances are equivalent if and only if they share ownership or are
-both empty.
+\item \tcode{!owner_before(b) \&\& !b.owner_before(*this)} is \tcode{true}
+if and only if \tcode{owner_equal(b)} is \tcode{true}.
 \end{itemize}
 \end{itemdescr}
 
+\indexlibrarymember{owner_hash}{weak_ptr}%
+\begin{itemdecl}
+size_t owner_hash() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+An unspecified value such that,
+for any object \tcode{x} where \tcode{owner_equal(x)} is \tcode{true},
+\tcode{owner_hash() == x.owner_hash()} is \tcode{true}.
+\end{itemdescr}
+
+\indexlibrarymember{owner_equal}{weak_ptr}%
+\begin{itemdecl}
+template<class U>
+  bool owner_equal(const shared_ptr<U>& b) const noexcept;
+template<class U>
+  bool owner_equal(const weak_ptr<U>& b) const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{true} if and only if
+\tcode{*this} and \tcode{b} share ownership or are both empty.
+Otherwise returns \tcode{false}.
+
+\pnum
+\remarks
+\tcode{owner_equal} is an equivalence relation.
+\end{itemdescr}
 
 \rSec4[util.smartptr.weak.spec]{Specialized algorithms}
 
@@ -4730,12 +4859,98 @@ Note that
 \item \tcode{operator()} defines a strict weak ordering as defined in~\ref{alg.sorting};
 
 \item
-two \tcode{shared_ptr} or \tcode{weak_ptr} instances are equivalent
-under the equivalence relation defined by \tcode{operator()},
-\tcode{!operator()(a, b) \&\& !operator()(b, a)},
-if and only if they share ownership or are both empty.
+\tcode{!operator()(a, b) \&\& !operator()(b, a)} is \tcode{true}
+if and only if \tcode{a.owner_equal(b)} is \tcode{true}.
 \end{itemize}
 \end{note}
+
+\rSec3[util.smartptr.owner.hash]{Struct \tcode{owner_hash}}
+
+\pnum
+The class \tcode{owner_hash} provides ownership-based hashing.
+
+\indexlibraryglobal{owner_hash}%
+\begin{codeblock}
+namespace std {
+  struct owner_hash {
+    template<class T>
+      size_t operator()(const shared_ptr<T>&) const noexcept;
+
+    template<class T>
+      size_t operator()(const weak_ptr<T>&) const noexcept;
+
+    using is_transparent = @\unspec@;
+  };
+}
+\end{codeblock}
+
+\indexlibrarymember{operator()}{owner_hash}%
+\begin{itemdecl}
+template<class T>
+  size_t operator()(const shared_ptr<T>& x) const noexcept;
+template<class T>
+  size_t operator()(const weak_ptr<T>& x) const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{x.owner_hash()}.
+
+\pnum
+\begin{note}
+For any object \tcode{y} where \tcode{x.owner_equal(y)} is \tcode{true},
+\tcode{x.owner_hash() == y.owner_hash()} is \tcode{true}.
+\end{note}
+\end{itemdescr}
+
+\rSec3[util.smartptr.owner.equal]{Struct \tcode{owner_equal}}
+
+\pnum
+The class \tcode{owner_equal} provides
+ownership-based mixed equality comparisons of shared and weak pointers.
+
+\indexlibraryglobal{owner_equal}%
+\begin{codeblock}
+namespace std {
+  struct owner_equal {
+    template<class T, class U>
+      bool operator()(const shared_ptr<T>&, const shared_ptr<U>&) const noexcept;
+    template<class T, class U>
+      bool operator()(const shared_ptr<T>&, const weak_ptr<U>&) const noexcept;
+    template<class T, class U>
+      bool operator()(const weak_ptr<T>&, const shared_ptr<U>&) const noexcept;
+    template<class T, class U>
+      bool operator()(const weak_ptr<T>&, const weak_ptr<U>&) const noexcept;
+
+    using is_transparent = @\unspec@;
+  };
+}
+\end{codeblock}
+
+\indexlibrarymember{operator()}{owner_equal}%
+\begin{itemdecl}
+template<class T, class U>
+  bool operator()(const shared_ptr<T>& x, const shared_ptr<U>& y) const noexcept;
+template<class T, class U>
+  bool operator()(const shared_ptr<T>& x, const weak_ptr<U>& y) const noexcept;
+template<class T, class U>
+  bool operator()(const weak_ptr<T>& x, const shared_ptr<U>& y) const noexcept;
+template<class T, class U>
+  bool operator()(const weak_ptr<T>& x, const weak_ptr<U>& y) const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{x.owner_equal(y)}.
+
+\pnum
+\begin{note}
+\tcode{x.owner_equal(y)} is \tcode{true}
+if and only if \tcode{x} and \tcode{y} share ownership or are both empty.
+\end{note}
+\end{itemdescr}
 
 \rSec3[util.smartptr.enab]{Class template \tcode{enable_shared_from_this}}
 
@@ -4754,7 +4969,7 @@ int main() {
   shared_ptr<X> p(new X);
   shared_ptr<X> q = p->shared_from_this();
   assert(p == q);
-  assert(!p.owner_before(q) && !q.owner_before(p)); // p and q share ownership
+  assert(p.owner_equal(q));                         // \tcode{p} and \tcode{q} share ownership
 }
 \end{codeblock}
 \end{example}
@@ -4962,6 +5177,24 @@ explicit out_ptr_t(Smart& smart, Args... args);
 Initializes \tcode{s} with \tcode{smart},
 \tcode{a} with \tcode{std::forward<Args>(args)...}, and
 value-initializes \tcode{p}.
+Then, equivalent to:
+\begin{itemize}
+\item
+\begin{codeblock}
+s.reset();
+\end{codeblock}
+if the expression \tcode{s.reset()} is well-formed;
+
+\item
+otherwise,
+\begin{codeblock}
+s = Smart();
+\end{codeblock}
+if \tcode{is_constructible_v<Smart>} is \tcode{true};
+
+\item
+otherwise, the program is ill-formed.
+\end{itemize}
 
 \pnum
 \begin{note}

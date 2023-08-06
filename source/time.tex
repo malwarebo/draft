@@ -597,7 +597,7 @@ namespace std::chrono {
 
   template<class charT, class traits>
     basic_ostream<charT, traits>&
-      operator<<(basic_ostream<charT, traits>& os, const year_month_weekday& ymwdi);
+      operator<<(basic_ostream<charT, traits>& os, const year_month_weekday& ymwd);
 
   // \ref{time.cal.ymwdlast}, class \tcode{year_month_weekday_last}
   class year_month_weekday_last;
@@ -942,6 +942,31 @@ namespace std::inline literals::inline chrono_literals {
 namespace std::chrono {
   using namespace literals::chrono_literals;
 }
+
+namespace std {
+  // \ref{time.hash}, hash support
+  template<class T> struct hash;
+  template<class Rep, class Period> struct hash<chrono::duration<Rep, Period>>;
+  template<class Clock, class Duration> struct hash<chrono::time_point<Clock, Duration>>;
+  template<> struct hash<chrono::day>;
+  template<> struct hash<chrono::month>;
+  template<> struct hash<chrono::year>;
+  template<> struct hash<chrono::weekday>;
+  template<> struct hash<chrono::weekday_indexed>;
+  template<> struct hash<chrono::weekday_last>;
+  template<> struct hash<chrono::month_day>;
+  template<> struct hash<chrono::month_day_last>;
+  template<> struct hash<chrono::month_weekday>;
+  template<> struct hash<chrono::month_weekday_last>;
+  template<> struct hash<chrono::year_month>;
+  template<> struct hash<chrono::year_month_day>;
+  template<> struct hash<chrono::year_month_day_last>;
+  template<> struct hash<chrono::year_month_weekday>;
+  template<> struct hash<chrono::year_month_weekday_last>;
+  template<class Duration, class TimeZonePtr>
+    struct hash<chrono::zoned_time<Duration, TimeZonePtr>>;
+  template<> struct hash<chrono::leap_second>;
+}
 \end{codeblock}
 
 \rSec1[time.clock.req]{\oldconcept{Clock} requirements}
@@ -1279,10 +1304,10 @@ Members of \tcode{duration} do not throw exceptions other than
 those thrown by the indicated operations on their representations.
 
 \pnum
-The defaulted copy constructor of duration shall be a
+The defaulted copy constructor of \tcode{duration} shall be a
 constexpr function if and only if the required initialization
 of the member \tcode{rep_} for copy and move, respectively, would
-satisfy the requirements for a constexpr function.
+be constexpr-suitable\iref{dcl.constexpr}.
 
 \pnum
 \begin{example}
@@ -1313,7 +1338,7 @@ template<class Rep2>
 \begin{example}
 \begin{codeblock}
 duration<int, milli> d(3);          // OK
-duration<int, milli> d(3.5);        // error
+duration<int, milli> d2(3.5);       // error
 \end{codeblock}
 \end{example}
 
@@ -10478,10 +10503,11 @@ The productions
 are described in \ref{format.string}.
 Giving a \fmtgrammarterm{precision} specification
 in the \fmtgrammarterm{chrono-format-spec}
-is valid only for \tcode{std::chrono::duration} types
-where the representation type \tcode{Rep}
-is a floating-point type.
-For all other \tcode{Rep} types,
+is valid only for types that are
+specializations of \tcode{std::chrono::duration}
+for which the nested \grammarterm{typedef-name} \tcode{rep} denotes
+a floating-point type.
+For all other types,
 an exception of type \tcode{format_error} is thrown
 if the \fmtgrammarterm{chrono-format-spec}
 contains a \fmtgrammarterm{precision} specification.
@@ -10560,7 +10586,7 @@ A \tcode{duration} does not contain enough information
 to format as a \tcode{weekday}.
 \end{example}
 However, if a flag refers to a ``time of day''
-(e.g. \tcode{\%H}, \tcode{\%I}, \tcode{\%p}, etc.),
+(e.g., \tcode{\%H}, \tcode{\%I}, \tcode{\%p}, etc.),
 then a specialization of \tcode{duration} is interpreted as
 the time of day elapsed since midnight.
 
@@ -11174,7 +11200,7 @@ the information that the format flag refers to,
 A \tcode{duration} cannot represent a \tcode{weekday}.
 \end{example}
 However, if a flag refers to a ``time of day''
-(e.g. \tcode{\%H}, \tcode{\%I}, \tcode{\%p}, etc.),
+(e.g., \tcode{\%H}, \tcode{\%I}, \tcode{\%p}, etc.),
 then a specialization of \tcode{duration} is parsed as
 the time of day elapsed since midnight.
 
@@ -11401,7 +11427,7 @@ The modified command \tcode{\%EX} interprets the locale's alternate time represe
 \tcode{\%y} &
 The last two decimal digits of the year.
 If the century is not otherwise specified
-(e.g.  with \tcode{\%C}),
+(e.g.,  with \tcode{\%C}),
 values in the range \crange{69}{99}
 are presumed to refer to the years 1969 to 1999,
 and values in the range \crange{00}{68}
@@ -11447,6 +11473,101 @@ A \tcode{\%} character is extracted.
 \end{LongTable}
 
 \indexlibrary{\idxcode{parse}|)}
+
+\rSec1[time.hash]{Hash support}
+
+\indexlibrarymember{hash}{duration}%
+\begin{itemdecl}
+template<class Rep, class Period> struct hash<chrono::duration<Rep, Period>>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The specialization \tcode{hash<chrono::duration<Rep, Period>>} is enabled\iref{unord.hash}
+if and only if \\% newline to fix overfull hbox
+\tcode{hash<Rep>} is enabled.
+The member functions are not guaranteed to be \keyword{noexcept}.
+\end{itemdescr}
+
+\indexlibrarymember{hash}{time_point}%
+\begin{itemdecl}
+template<class Clock, class Duration> struct hash<chrono::time_point<Clock, Duration>>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The specialization \tcode{hash<chrono::time_point<Clock, Duration>>} is enabled\iref{unord.hash}
+if and only if \tcode{hash<Duration>} is enabled.
+The member functions are not guaranteed to be \keyword{noexcept}.
+\end{itemdescr}
+
+\indexlibrarymember{hash}{day}%
+\indexlibrarymember{hash}{month}%
+\indexlibrarymember{hash}{year}%
+\indexlibrarymember{hash}{weekday}%
+\indexlibrarymember{hash}{weekday_indexed}%
+\indexlibrarymember{hash}{weekday_last}%
+\indexlibrarymember{hash}{month_day}%
+\indexlibrarymember{hash}{month_day_last}%
+\indexlibrarymember{hash}{month_weekday}%
+\indexlibrarymember{hash}{month_weekday_last}%
+\indexlibrarymember{hash}{year_month}%
+\indexlibrarymember{hash}{year_month_day}%
+\indexlibrarymember{hash}{year_month_day_last}%
+\indexlibrarymember{hash}{year_month_weekday}%
+\indexlibrarymember{hash}{year_month_weekday_last}%
+\begin{itemdecl}
+template<> struct hash<chrono::day>;
+template<> struct hash<chrono::month>;
+template<> struct hash<chrono::year>;
+template<> struct hash<chrono::weekday>;
+template<> struct hash<chrono::weekday_indexed>;
+template<> struct hash<chrono::weekday_last>;
+template<> struct hash<chrono::month_day>;
+template<> struct hash<chrono::month_day_last>;
+template<> struct hash<chrono::month_weekday>;
+template<> struct hash<chrono::month_weekday_last>;
+template<> struct hash<chrono::year_month>;
+template<> struct hash<chrono::year_month_day>;
+template<> struct hash<chrono::year_month_day_last>;
+template<> struct hash<chrono::year_month_weekday>;
+template<> struct hash<chrono::year_month_weekday_last>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The specializations are enabled\iref{unord.hash}.
+\begin{note}
+All the \tcode{hash<Key>} specializations listed above meet the
+\oldconcept{Cpp17Hash} requirements, even when called on objects \tcode{k}
+of type \tcode{Key} such that \tcode{k.ok()} is \tcode{false}.
+\end{note}
+\end{itemdescr}
+
+\indexlibrarymember{hash}{zoned_time}%
+\begin{itemdecl}
+template<class Duration, class TimeZonePtr>
+  struct hash<chrono::zoned_time<Duration, TimeZonePtr>>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The specialization \tcode{hash<chrono::zoned_time<Durationm TimeZonePtr>>}
+is enabled\iref{unord.hash}
+if and only if \tcode{hash<Duration>} is enabled and
+\tcode{hash<TimeZonePtr>} is enabled.
+The member functions are not guaranteed to be \keyword{noexcept}.
+\end{itemdescr}
+
+\indexlibrarymember{hash}{leap_second}%
+\begin{itemdecl}
+template<> struct hash<chrono::leap_second>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The specialization is enabled\iref{unord.hash}.
+\end{itemdescr}
 
 \rSec1[ctime.syn]{Header \tcode{<ctime>} synopsis}
 

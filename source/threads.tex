@@ -9,7 +9,7 @@ threads\iref{intro.multithread}, perform mutual exclusion, and communicate condi
 and values
 between threads, as summarized in \tref{thread.summary}.
 
-\begin{libsumtab}{Thread support library summary}{thread.summary}
+\begin{libsumtab}{Concurrency support library summary}{thread.summary}
 \ref{thread.req}      & Requirements          &                               \\ \rowsep
 \ref{thread.stoptoken}& Stop tokens           & \tcode{<stop_token>}          \\ \rowsep
 \ref{thread.threads}  & Threads               & \tcode{<thread>}              \\ \rowsep
@@ -19,8 +19,9 @@ between threads, as summarized in \tref{thread.summary}.
   \tcode{<mutex>}, \tcode{<shared_mutex>} \\ \rowsep
 \ref{thread.condition}& Condition variables   & \tcode{<condition_variable>}  \\ \rowsep
 \ref{thread.sema}     & Semaphores & \tcode{<semaphore>} \\ \rowsep
-\ref{thread.coord}    & Coordination types & \tcode{<latch>} \tcode{<barrier>} \\ \rowsep
-\ref{futures}         & Futures               & \tcode{<future>}              \\
+\ref{thread.coord}    & Coordination types & \tcode{<latch>}, \tcode{<barrier>} \\ \rowsep
+\ref{futures}         & Futures               & \tcode{<future>}              \\ \rowsep
+\ref{saferecl}        & Safe reclamation      & \tcode{<rcu>}, \tcode{<hazard_pointer>}  \\
 \end{libsumtab}
 
 \rSec1[thread.req]{Requirements}
@@ -1204,6 +1205,8 @@ namespace std {
     basic_ostream<charT, traits>&
       operator<<(basic_ostream<charT, traits>& out, thread::id id);
 
+  template<class charT> struct formatter<thread::id, charT>;
+
   // hash support
   template<class T> struct hash;
   template<> struct hash<thread::id>;
@@ -1219,6 +1222,16 @@ associated \tcode{thread::id} object that is not equal to the
 \tcode{thread::id} object of any other thread of execution and that is not
 equal to the \tcode{thread::id} object of any \tcode{thread} object that
 does not represent threads of execution.
+
+\pnum
+The \defn{text representation} for
+the character type \tcode{charT} of an object of type \tcode{thread::id}
+is an unspecified sequence of \tcode{charT} such that,
+for two objects of type \tcode{thread::id} \tcode{x} and \tcode{y},
+if \tcode{x == y} is \tcode{true},
+the \tcode{thread::id} objects have the same text representation, and
+if \tcode{x != y} is \tcode{true},
+the \tcode{thread::id} objects have distinct text representations.
 
 \pnum
 \tcode{thread::id} is a trivially copyable class\iref{class.prop}.
@@ -1283,15 +1296,42 @@ template<class charT, class traits>
 \begin{itemdescr}
 \pnum
 \effects
-Inserts an unspecified text representation of \tcode{id} into
-\tcode{out}. For two objects of type \tcode{thread::id} \tcode{x} and \tcode{y},
-if \tcode{x == y} the \tcode{thread::id} objects have the same text
-representation and if \tcode{x != y} the \tcode{thread::id} objects have
-distinct text representations.
+Inserts the text representation for \tcode{charT} of \tcode{id} into
+\tcode{out}.
 
 \pnum
 \returns
 \tcode{out}.
+\end{itemdescr}
+
+\indexlibrary{\idxcode{formatter}!specializations!\idxcode{thread::id}}%
+\begin{itemdecl}
+template<class charT> struct formatter<thread::id, charT>;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\tcode{formatter<thread::id, charT>} interprets \fmtgrammarterm{format-spec}
+as a \fmtgrammarterm{thread-id-format-spec}.
+The syntax of format specifications is as follows:
+
+\begin{ncbnf}
+\fmtnontermdef{thread-id-format-spec}\br
+    \opt{fill-and-align} \opt{width}
+\end{ncbnf}
+
+\begin{note}
+The productions \fmtgrammarterm{fill-and-align} and \fmtgrammarterm{width}
+are described in \ref{format.string.std}.
+\end{note}
+
+\pnum
+If the \fmtgrammarterm{align} option is omitted it defaults to \tcode{>}.
+
+\pnum
+A \tcode{thread::id} object is formatted by
+writing its text representation for \tcode{charT} to the output
+with additional padding and adjustments as specified by the format specifiers.
 \end{itemdescr}
 
 \indexlibrarymember{hash}{thread::id}%
@@ -4828,12 +4868,12 @@ template<typename T> class atomic_list {
   atomic<shared_ptr<node>> head;
 
 public:
-  auto find(T t) const {
+  shared_ptr<node> find(T t) const {
     auto p = head.load();
     while (p && p->t != t)
       p = p->next;
 
-    return shared_ptr<node>(move(p));
+    return p;
   }
 
   void push_front(T t) {
@@ -4866,6 +4906,7 @@ namespace std {
     operator shared_ptr<T>() const noexcept;
     void store(shared_ptr<T> desired, memory_order order = memory_order::seq_cst) noexcept;
     void operator=(shared_ptr<T> desired) noexcept;
+    void operator=(nullptr_t) noexcept;
 
     shared_ptr<T> exchange(shared_ptr<T> desired,
                            memory_order order = memory_order::seq_cst) noexcept;
@@ -4950,6 +4991,17 @@ void operator=(shared_ptr<T> desired) noexcept;
 \pnum
 \effects
 Equivalent to \tcode{store(desired)}.
+\end{itemdescr}
+
+\indexlibrarymember{operator=}{atomic<shared_ptr<T>>}%
+\begin{itemdecl}
+void operator=(nullptr_t) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to \tcode{store(nullptr)}.
 \end{itemdescr}
 
 \indexlibrarymember{load}{atomic<shared_ptr<T>>}%
@@ -9604,15 +9656,11 @@ Each \defn{barrier phase} consists of the following steps:
   The expected count is decremented
   by each call to \tcode{arrive} or \tcode{arrive_and_drop}.
 \item
-  When the expected count reaches zero, the phase completion step is run.
-  For the specialization
-  with the default value of the \tcode{CompletionFunction} template parameter,
-  the completion step is run
-  as part of the call to \tcode{arrive} or \tcode{arrive_and_drop}
-  that caused the expected count to reach zero.
-  For other specializations,
-  the completion step is run on one of the threads
-  that arrived at the barrier during the phase.
+  Exactly once after the expected count reaches zero, a thread
+  executes the completion step during its call
+  to \tcode{arrive}, \tcode{arrive_and_drop}, or \tcode{wait},
+  except that it is \impldef{barrier phrase completion without \tcode{wait}}
+  whether the step executes if no thread calls \tcode{wait}.
 \item
   When the completion step finishes,
   the expected count is reset
@@ -11613,4 +11661,819 @@ template<class R, class... ArgTypes>
 \pnum
 \effects
 As if by \tcode{x.swap(y)}.
+\end{itemdescr}
+
+\rSec1[saferecl]{Safe reclamation}
+
+\rSec2[saferecl.general]{General}
+
+\pnum
+Subclause \ref{saferecl} contains safe-reclamation techniques, which are most
+frequently used to straightforwardly resolve access-deletion races.
+
+\rSec2[saferecl.rcu]{Read-copy update (RCU)}
+
+\rSec3[saferecl.rcu.general]{General}
+
+\pnum
+RCU is a synchronization mechanism
+that can be used for linked data structures
+that are frequently read, but seldom updated.
+RCU does not provide mutual exclusion,
+but instead allows the user to schedule specified actions
+such as deletion at some later time.
+
+\pnum
+A class type \tcode{T} is \defn{rcu-protectable}
+if it has exactly one base class of type \tcode{rcu_obj_base<T, D>}
+for some \tcode{D}, and that base is public and non-virtual, and
+it has no base classes of type \tcode{rcu_obj_base<X, Y>}
+for any other combination \tcode{X}, \tcode{Y}.
+An object is rcu-protectable if it is of rcu-protectable type.
+
+\pnum
+An invocation of \tcode{unlock} $U$ on an \tcode{rcu_domain dom}
+corresponds to an invocation of \tcode{lock} $L$ on \tcode{dom}
+if $L$ is sequenced before $U$ and either
+\begin{itemize}
+\item
+no other invocation of \tcode{lock} on \tcode{dom}
+is sequenced after $L$ and before $U$, or
+\item
+every invocation of \tcode{unlock} $U2$ on \tcode{dom}
+such that $L$ is sequenced before $U2$ and $U2$ is sequenced before $U$
+corresponds to an invocation of \tcode{lock} $L2$ on \tcode{dom}
+such that $L$ is sequenced before $L2$ and $L2$ is sequenced before $U2$.
+\end{itemize}
+\begin{note}
+This pairs nested locks and unlocks on a given domain in each thread.
+\end{note}
+
+\pnum
+A \defn{region of RCU protection} on a domain \tcode{dom}
+starts with a \tcode{lock} $L$ on \tcode{dom} and
+ends with its corresponding \tcode{unlock} $U$.
+
+\pnum
+Given a region of RCU protection $R$ on a domain \tcode{dom} and
+given an evaluation $E$ that scheduled another evaluation $F$ in \tcode{dom},
+if $E$ does not strongly happen before the start of $R$,
+the end of $R$ strongly happens before evaluating $F$.
+
+\pnum
+The evaluation of a scheduled evaluation is potentially concurrent with
+any other scheduled evaluation.
+Each scheduled evaluation is evaluated at most once.
+
+\rSec3[rcu.syn]{Header \tcode{<rcu>} synopsis}
+
+\indexheader{rcu}
+\begin{codeblock}
+namespace std {
+  // \ref{saferecl.rcu.base}, class template \tcode{rcu_obj_base}
+  template<class T, class D = default_delete<T>> class rcu_obj_base;
+
+  // \ref{saferecl.rcu.domain}, class \tcode{rcu_domain}
+  class rcu_domain;
+
+  // \ref{saferecl.rcu.domain.func} non-member functions
+  rcu_domain& rcu_default_domain() noexcept;
+  void rcu_synchronize(rcu_domain& dom = rcu_default_domain()) noexcept;
+  void rcu_barrier(rcu_domain& dom = rcu_default_domain()) noexcept;
+  template<class T, class D = default_delete<T>>
+    void rcu_retire(T* p, D d = D(), rcu_domain& dom = rcu_default_domain());
+}
+\end{codeblock}
+
+\rSec3[saferecl.rcu.base]{Class template \tcode{rcu_obj_base}}
+
+\pnum
+Objects of type \tcode{T} to be protected by RCU inherit from
+a specialization \tcode{rcu_obj_base<T, D>} for some \tcode{D}.
+
+\begin{codeblock}
+namespace std {
+  template<class T, class D = default_delete<T>>
+  class rcu_obj_base {
+  public:
+    void retire(D d = D(), rcu_domain& dom = rcu_default_domain()) noexcept;
+  protected:
+    rcu_obj_base() = default;
+    rcu_obj_base(const rcu_obj_base&) = default;
+    rcu_obj_base(rcu_obj_base&&) = default;
+    rcu_obj_base& operator=(const rcu_obj_base&) = default;
+    rcu_obj_base& operator=(rcu_obj_base&&) = default;
+    ~rcu_obj_base() = default;
+  private:
+    D @\exposid{deleter}@;            // \expos
+  };
+}
+\end{codeblock}
+
+\pnum
+The behavior of a program that adds specializations for \tcode{rcu_obj_base}
+is undefined.
+
+\pnum
+\tcode{T} may be an incomplete type.
+It shall be complete before any member of the resulting specialization of
+\tcode{rcu_obj_base} is referenced.
+
+\pnum
+\tcode{D} shall be a
+function object type\iref{function.objects} for which,
+given a value \tcode{d} of type \tcode{D} and
+a value \tcode{ptr} of type \tcode{T*},
+the expression \tcode{d(ptr)} is valid.
+
+\pnum
+\tcode{D} shall meet the requirements for
+\oldconcept{DefaultConstructible} and \oldconcept{MoveAssignable}.
+
+\pnum
+If \tcode{D} is trivially copyable,
+all specializations of \tcode{rcu_obj_base<T, D>} are trivially copyable.
+
+\begin{itemdecl}
+void retire(D d = D(), rcu_domain& dom = rcu_default_domain()) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{T} is an rcu-protectable type.
+
+\pnum
+\expects
+\tcode{*this} is
+a base class subobject of an object \tcode{x} of type \tcode{T}.
+The member function \tcode{rcu_obj_base<T, D>::retire}
+was not invoked on \tcode{x} before.
+The assignment to \exposid{deleter} does not exit via an exception.
+
+\pnum
+\effects
+Evaluates \tcode{\exposid{deleter} = std::move(d)} and
+schedules the evaluation of
+the expression \tcode{\exposid{deleter}(\newline addressof(x))}
+in the domain \tcode{dom};
+the behavior is undefined if that evaluation exits via an exception.
+May invoke scheduled evaluations in \tcode{dom}.
+
+\begin{note}
+If such evaluations acquire resources held across any invocation of
+\tcode{retire} on \tcode{dom}, deadlock can occur.
+\end{note}
+\end{itemdescr}
+
+\rSec3[saferecl.rcu.domain]{Class \tcode{rcu_domain}}
+
+\rSec4[saferecl.rcu.domain.general]{General}
+
+\begin{codeblock}
+namespace std {
+  class rcu_domain {
+  public:
+    rcu_domain(const rcu_domain&) = delete;
+    rcu_domain& operator=(const rcu_domain&) = delete;
+
+    void lock() noexcept;
+    bool try_lock() noexcept;
+    void unlock() noexcept;
+  };
+}
+\end{codeblock}
+
+\pnum
+This class meets the requirements of
+\oldconcept{Lockable}\iref{thread.req.lockable.req} and
+provides regions of RCU protection.
+\begin{example}
+\begin{codeblock}
+std::scoped_lock<rcu_domain> rlock(rcu_default_domain());
+\end{codeblock}
+\end{example}
+
+\pnum
+The functions \tcode{lock} and \tcode{unlock} establish
+(possibly nested) regions of RCU protection.
+
+\rSec4[saferecl.rcu.domain.members]{Member functions}
+
+\indexlibrarymember{lock}{rcu_domain}%
+\begin{itemdecl}
+void lock() noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Opens a region of RCU protection.
+
+\pnum
+\remarks
+Calls to \tcode{lock}
+do not introduce a data race\iref{intro.races} involving \tcode{*this}.
+\end{itemdescr}
+
+\indexlibrarymember{try_lock}{rcu_domain}%
+\begin{itemdecl}
+bool try_lock() noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to \tcode{lock()}.
+
+\pnum
+\returns
+\tcode{true}.
+\end{itemdescr}
+
+\indexlibrarymember{unlock}{rcu_domain}%
+\begin{itemdecl}
+void unlock() noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\expects
+A call to \tcode{lock}
+that opened an unclosed region of RCU protection
+is sequenced before the call to \tcode{unlock}.
+
+\pnum
+\effects
+Closes the unclosed region of RCU protection
+that was most recently opened.
+May invoke scheduled evaluations in \tcode{*this}.
+
+\pnum
+\begin{note}
+If such evaluations acquire resources
+held across any invocation of \tcode{unlock} on \tcode{*this},
+deadlock can occur.
+\end{note}
+
+\pnum
+\remarks
+Calls to \tcode{unlock} do not introduce a data race involving \tcode{*this}.
+\begin{note}
+Evaluation of scheduled evaluations can still cause a data race.
+\end{note}
+\end{itemdescr}
+
+\rSec4[saferecl.rcu.domain.func]{Non-member functions}
+
+\indexlibraryglobal{rcu_default_domain}%
+\begin{itemdecl}
+rcu_domain& rcu_default_domain() noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+A reference to a static-duration object of type \tcode{rcu_domain}.
+A reference to the same object is returned every time this function is called.
+\end{itemdescr}
+
+\indexlibraryglobal{rcu_synchronize}%
+\begin{itemdecl}
+void rcu_synchronize(rcu_domain& dom = rcu_default_domain()) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+If the call to \tcode{rcu_synchronize} does not strongly happen before
+the lock opening an RCU protection region \tcode{R} on \tcode{dom},
+blocks until the \tcode{unlock} closing \tcode{R} happens.
+
+\pnum
+\sync
+The \tcode{unlock} closing \tcode{R}
+strongly happens before the return from \tcode{rcu_synchronize}.
+\end{itemdescr}
+
+\indexlibraryglobal{rcu_barrier}%
+\begin{itemdecl}
+void rcu_barrier(rcu_domain& dom = rcu_default_domain()) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+May evaluate any scheduled evaluations in \tcode{dom}.
+For any evaluation that happens before the call to \tcode{rcu_barrier} and
+that schedules an evaluation $E$ in \tcode{dom},
+blocks until $E$ has been evaluated.
+
+\pnum
+\sync
+The evaluation of any such $E$
+strongly happens before the return from \tcode{rcu_barrier}.
+
+\begin{note}
+A call to \tcode{rcu_barrier} does not imply
+a call to \tcode{rcu_synchronize} and vice versa.
+\end{note}
+\end{itemdescr}
+
+\indexlibraryglobal{rcu_retire}%
+\begin{itemdecl}
+template<class T, class D = default_delete<T>>
+void rcu_retire(T* p, D d = D(), rcu_domain& dom = rcu_default_domain());
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{is_move_constructible_v<D>} is \tcode{true} and
+the expression \tcode{d(p)} is well-formed.
+
+\pnum
+\expects
+\tcode{D} meets the \oldconcept{MoveConstructible} and
+\oldconcept{Destructible} requirements.
+
+\pnum
+\effects
+May allocate memory.
+It is unspecified whether the memory allocation
+is performed by invoking \tcode{\keyword{operator} \keyword{new}}.
+Initializes an object \tcode{d1} of type \tcode{D} from \tcode{std::move(d)}.
+Schedules the evaluation of \tcode{d1(p)} in the domain \tcode{dom};
+the behavior is undefined if that evaluation exits via an exception.
+May invoke scheduled evaluations in \tcode{dom}.
+\begin{note}
+If \tcode{rcu_retire} exits via an exception, no evaluation
+is scheduled.
+\end{note}
+
+\pnum
+\throws
+\tcode{bad_alloc} or any exception thrown by the initialization of \tcode{d1}.
+
+\pnum
+\begin{note}
+If scheduled evaluations acquire resources
+held across any invocation of \tcode{rcu_retire} on \tcode{dom},
+deadlock can occur.
+\end{note}
+\end{itemdescr}
+
+\rSec2[saferecl.hp]{Hazard pointers}
+
+\rSec3[saferecl.hp.general]{General}
+
+\pnum
+\indextext{hazard pointer}%
+A hazard pointer is a single-writer multi-reader pointer
+that can be owned by at most one thread at any time.
+Only the owner of the hazard pointer can set its value,
+while any number of threads may read its value.
+The owner thread sets the value of a hazard pointer to point to an object
+in order to indicate to concurrent threads---which
+may delete such an object---that
+the object is not yet safe to delete.
+
+\pnum
+A class type \tcode{T} is \defn{hazard-protectable}
+if it has exactly one base class of type \tcode{hazard_pointer_obj_base<T, D>}
+for some \tcode{D},
+that base is public and non-virtual, and
+it has no base classes of type \tcode{hazard_pointer_obj_base<T2, D2>}
+for any other combination \tcode{T2}, \tcode{D2}.
+An object is \defn{hazard-protectable} if it is of hazard-protectable type.
+
+\pnum
+The time span between creation and destruction of a hazard pointer $h$
+is partitioned into a series of \defnadjx{protection}{epochs}{epoch};
+in each protection epoch,
+$h$ either is \defnx{associated with}{hazard pointer!associated}
+a hazard-protectable object, or is \defnx{unassociated}{hazard pointer!unassociated}.
+Upon creation, a hazard pointer is unassociated.
+Changing the association (possibly to the same object)
+initiates a new protection epoch and ends the preceding one.
+
+\pnum
+An object \tcode{x} of hazard-protectable type \tcode{T} is
+\defn{retired} with a deleter of type \tcode{D}
+when the member function \tcode{hazard_pointer_obj_base<T, D>::retire}
+is invoked on \tcode{x}.
+Any given object \tcode{x} shall be retired at most once.
+
+\pnum
+A retired object \tcode{x} is \defn{reclaimed}
+by invoking its deleter with a pointer to \tcode{x};
+the behavior is undefined if that invocation exits via an exception.
+
+\pnum
+A hazard-protectable object \tcode{x} is \defn{possibly-reclaimable}
+with respect to an evaluation $A$ if:
+\begin{itemize}
+\item
+\tcode{x} is not reclaimed; and
+\item
+\tcode{x} is retired in an evaluation $R$ and
+$A$ does not happen before $R$; and
+\item
+for all hazard pointers $h$ and for every protection epoch $E$ of $h$
+during which $h$ is associated with \tcode{x}:
+\begin{itemize}
+\item
+if the beginning of $E$ happens before $R$,
+the end of $E$ strongly happens before $A$; and
+\item
+if $E$ began by an evaluation of \tcode{try_protect} with argument \tcode{src},
+label its atomic load operation $L$.
+If there exists an atomic modification $B$ on \tcode{src}
+such that $L$ observes a modification that is modification-ordered before $B$, and
+$B$ happens before \tcode{x} is retired,
+the end of $E$ strongly happens before $A$.
+\begin{note}
+In typical use, a store to \tcode{src} sequenced before retiring \tcode{x}
+will be such an atomic operation $B$.
+\end{note}
+\end{itemize}
+\begin{note}
+The latter two conditions convey the informal notion
+that a protection epoch that began before retiring \tcode{x},
+as implied either by the happens-before relation or
+the coherence order of some source,
+delays the reclamation of \tcode{x}.
+\end{note}
+\end{itemize}
+
+\pnum
+The number of possibly-reclaimable objects has an unspecified bound.
+\begin{note}
+The bound can be a function of the number of hazard pointers,
+the number of threads that retire objects, and
+the number of threads that use hazard pointers.
+\end{note}
+\begin{example}
+The following example shows how hazard pointers allow updates to be carried out
+in the presence of concurrent readers.
+The object of type \tcode{hazard_pointer} in \tcode{print_name}
+protects the object \tcode{*ptr} from being reclaimed by \tcode{ptr->retire}
+until the end of the protection epoch.
+\begin{codeblock}
+struct Name : public hazard_pointer_obj_base<Name> { /* details */ };
+atomic<Name*> name;
+// called often and in parallel!
+void print_name() {
+  hazard_pointer h = make_hazard_pointer();
+  Name* ptr = h.protect(name);          // Protection epoch starts
+  // ... safe to access \tcode{*ptr}
+}                                       // Protection epoch ends.
+
+// called rarely, but possibly concurrently with \tcode{print_name}
+void update_name(Name* new_name) {
+  Name* ptr = name.exchange(new_name);
+  ptr->retire();
+}
+\end{codeblock}
+\end{example}
+
+\rSec3[hazard.pointer.syn]{Header \tcode{<hazard_pointer>} synopsis}
+
+\indexheader{hazard_pointer}%
+\begin{codeblock}
+namespace std {
+  // \ref{saferecl.hp.base}, class template \tcode{hazard_pointer_obj_base}
+  template<class T, class D = default_delete<T>> class hazard_pointer_obj_base;
+
+  // \ref{saferecl.hp.holder}, class \tcode{hazard_pointer}
+  class hazard_pointer;
+
+  // \ref{saferecl.hp.holder.nonmem}, non-member functions
+  hazard_pointer make_hazard_pointer();
+  void swap(hazard_pointer&, hazard_pointer&) noexcept;
+}
+\end{codeblock}
+
+\rSec3[saferecl.hp.base]{Class template \tcode{hazard_pointer_obj_base}}
+
+\begin{codeblock}
+namespace std {
+  template<class T, class D = default_delete<T>>
+  class hazard_pointer_obj_base {
+  public:
+    void retire(D d = D()) noexcept;
+  protected:
+    hazard_pointer_obj_base() = default;
+    hazard_pointer_obj_base(const hazard_pointer_obj_base&) = default;
+    hazard_pointer_obj_base(hazard_pointer_obj_base&&) = default;
+    hazard_pointer_obj_base& operator=(const hazard_pointer_obj_base&) = default;
+    hazard_pointer_obj_base& operator=(hazard_pointer_obj_base&&) = default;
+    ~hazard_pointer_obj_base() = default;
+  private:
+    D @\exposid{deleter}@;      // \expos
+  };
+}
+\end{codeblock}
+
+\pnum
+\tcode{D} shall be a function object type\iref{func.require}
+for which, given a value \tcode{d} of type \tcode{D} and
+a value \tcode{ptr} of type \tcode{T*},
+the expression \tcode{d(ptr)} is valid.
+
+\pnum
+The behavior of a program
+that adds specializations for \tcode{hazard_pointer_obj_base} is undefined.
+
+\pnum
+\tcode{D} shall meet the requirements for
+\oldconcept{DefaultConstructible} and \oldconcept{MoveAssignable}.
+
+\pnum
+\tcode{T} may be an incomplete type.
+It shall be complete before any member
+of the resulting specialization of \tcode{hazard_pointer_obj_base}
+is referenced.
+
+\indexlibrarymember{retire}{hazard_pointer_obj_base}%
+\begin{itemdecl}
+void retire(D d = D()) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{T} is a hazard-protectable type.
+
+\pnum
+\expects
+\tcode{*this} is
+a base class subobject of an object \tcode{x} of type \tcode{T}.
+\tcode{x} is not retired.
+Move-assigning \tcode{d} to \tcode{deleter} does not exit via an exception.
+
+\pnum
+\effects
+Move-assigns \tcode{d} to \tcode{deleter},
+thereby setting it as the deleter of \tcode{x},
+then retires \tcode{x}.
+May reclaim possibly-reclaimable objects.
+\end{itemdescr}
+
+\rSec3[saferecl.hp.holder]{Class \tcode{hazard_pointer}}
+
+\rSec4[saferecl.hp.holder.general]{General}
+
+\begin{codeblock}
+namespace std {
+  class hazard_pointer {
+  public:
+    hazard_pointer() noexcept;
+    hazard_pointer(hazard_pointer&&) noexcept;
+    hazard_pointer& operator=(hazard_pointer&&) noexcept;
+    ~hazard_pointer();
+
+    [[nodiscard]] bool empty() const noexcept;
+    template<class T> T* protect(const atomic<T*>& src) noexcept;
+    template<class T> bool try_protect(T*& ptr, const atomic<T*>& src) noexcept;
+    template<class T> void reset_protection(const T* ptr) noexcept;
+    void reset_protection(nullptr_t = nullptr) noexcept;
+    void swap(hazard_pointer&) noexcept;
+  };
+}
+\end{codeblock}
+
+\pnum
+An object of type \tcode{hazard_pointer} is either empty or
+\defnx{owns}{owning!hazard pointer} a hazard pointer.
+Each hazard pointer is owned by
+exactly one object of type \tcode{hazard_pointer}.
+\begin{note}
+An empty \tcode{hazard_pointer} object is different from
+a \tcode{hazard_pointer} object
+that owns an unassociated hazard pointer.
+An empty \tcode{hazard_pointer} object does not own any hazard pointers.
+\end{note}
+
+\rSec4[saferecl.hp.holder.ctor]{Constructors, destructor, and assignment}
+
+\indexlibraryctor{hazard_pointer}%
+\begin{itemdecl}
+hazard_pointer() noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\ensures
+\tcode{*this} is empty.
+\end{itemdescr}
+
+\indexlibraryctor{hazard_pointer}%
+\begin{itemdecl}
+hazard_pointer(hazard_pointer&& other) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\ensures
+If \tcode{other} is empty, \tcode{*this} is empty.
+Otherwise,
+\tcode{*this} owns the hazard pointer originally owned by \tcode{other};
+\tcode{other} is empty.
+\end{itemdescr}
+
+\indexlibrarydtor{hazard_pointer}%
+\begin{itemdecl}
+~hazard_pointer();
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+If \tcode{*this} is not empty,
+destroys the hazard pointer owned by \tcode{*this},
+thereby ending its current protection epoch.
+\end{itemdescr}
+
+\indexlibrarymember{operator=}{hazard_pointer}%
+\begin{itemdecl}
+hazard_pointer& operator=(hazard_pointer&& other) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+If \tcode{this == \&other} is \tcode{true}, no effect.
+Otherwise, if \tcode{*this} is not empty,
+destroys the hazard pointer owned by \tcode{*this},
+thereby ending its current protection epoch.
+
+\pnum
+\ensures
+If \tcode{other} was empty, \tcode{*this} is empty.
+Otherwise, \tcode{*this} owns the hazard pointer originally
+owned by \tcode{other}.
+If \tcode{this != \&other} is \tcode{true}, \tcode{other} is empty.
+
+\pnum
+\returns
+\tcode{*this}.
+\end{itemdescr}
+
+\rSec4[saferecl.hp.holder.mem]{Member functions}
+
+\indexlibrarymember{empty}{hazard_pointer}%
+\begin{itemdecl}
+[[nodiscard]] bool empty() const noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{true} if and only if \tcode{*this} is empty.
+\end{itemdescr}
+
+\indexlibrarymember{protect}{hazard_pointer}%
+\begin{itemdecl}
+template<class T> T* protect(const atomic<T*>& src) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to:
+\begin{codeblock}
+T* ptr = src.load(memory_order::relaxed);
+while (!try_protect(ptr, src)) {}
+return ptr;
+\end{codeblock}
+\end{itemdescr}
+
+\indexlibrarymember{try_protect}{hazard_pointer}%
+\begin{itemdecl}
+template<class T> bool try_protect(T*& ptr, const atomic<T*>& src) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{T} is a hazard-protectable type.
+
+\pnum
+\expects
+\tcode{*this} is not empty.
+
+\pnum
+\effects
+Performs the following steps in order:
+\begin{itemize}
+\item Initializes a variable \tcode{old} of type \tcode{T*} with the value of \tcode{ptr}.
+\item Evaluates \tcode{reset_protection(old)}.
+\item Assigns the value of \tcode{src.load(memory_order::acquire)} to \tcode{ptr}.
+\item If \tcode{old == ptr} is \tcode{false},
+evaluates \tcode{reset_protection()}.
+\end{itemize}
+
+\pnum
+\returns
+\tcode{old == ptr}.
+\end{itemdescr}
+
+\indexlibrarymember{reset_protection}{hazard_pointer}%
+\begin{itemdecl}
+template<class T> void reset_protection(const T* ptr) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\mandates
+\tcode{T} is a hazard-protectable type.
+
+\pnum
+\expects
+\tcode{*this} is not empty.
+
+\pnum
+\effects
+If \tcode{ptr} is a null pointer value, invokes \tcode{reset_protection()}.
+Otherwise,
+associates the hazard pointer owned by \tcode{*this} with \tcode{*ptr},
+thereby ending the current protection epoch.
+
+\pnum
+\complexity
+Constant.
+\end{itemdescr}
+
+\indexlibrarymember{reset_protection}{hazard_pointer}%
+\begin{itemdecl}
+void reset_protection(nullptr_t = nullptr) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\expects
+\tcode{*this} is not empty.
+
+\pnum
+\ensures
+The hazard pointer owned by \tcode{*this} is unassociated.
+
+\pnum
+\complexity
+Constant.
+\end{itemdescr}
+
+\indexlibrarymember{swap}{hazard_pointer}%
+\begin{itemdecl}
+void swap(hazard_pointer& other) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Swaps the hazard pointer ownership of this object with that of \tcode{other}.
+\begin{note}
+The owned hazard pointers, if any, remain unchanged during the swap and
+continue to be associated with the respective objects
+that they were protecting before the swap, if any.
+No protection epochs are ended or initiated.
+\end{note}
+
+\pnum
+\complexity
+Constant.
+\end{itemdescr}
+
+\rSec4[saferecl.hp.holder.nonmem]{Non-member functions}
+
+\indexlibraryglobal{make_hazard_pointer}%
+\begin{itemdecl}
+hazard_pointer make_hazard_pointer();
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Constructs a hazard pointer.
+
+\pnum
+\returns
+A \tcode{hazard_pointer} object that owns the newly-constructed hazard pointer.
+
+\pnum
+\throws
+May throw \tcode{bad_alloc}
+if memory for the hazard pointer could not be allocated.
+\end{itemdescr}
+
+\indexlibrarymember{swap}{hazard_pointer}%
+\begin{itemdecl}
+void swap(hazard_pointer& a, hazard_pointer& b) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects
+Equivalent to \tcode{a.swap(b)}.
 \end{itemdescr}

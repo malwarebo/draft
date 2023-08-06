@@ -699,7 +699,7 @@ function\iref{class.virtual}.
 The type of a non-static data member shall not be an
 incomplete type\iref{term.incomplete.type},
 an abstract class type\iref{class.abstract},
-or a (possibly multi-dimensional) array thereof.
+or a (possibly multidimensional) array thereof.
 \begin{note}
 In particular, a class \tcode{C} cannot contain
 a non-static member of class \tcode{C},
@@ -944,9 +944,10 @@ its class or a class derived from its class, or
 a member thereof, as described below.
 
 \pnum
-When an \grammarterm{id-expression}\iref{expr.prim.id} that is not part of a
-class member access syntax\iref{expr.ref} and not used to form a
-pointer to member\iref{expr.unary.op} is used
+When an \grammarterm{id-expression}\iref{expr.prim.id} that is
+neither part of a class member access syntax\iref{expr.ref}
+nor the unparenthesized operand of
+the unary \tcode{\&} operator\iref{expr.unary.op} is used
 where the current class is \tcode{X}\iref{expr.prim.this},
 if name
 lookup\iref{basic.lookup} resolves the name in the
@@ -1221,6 +1222,9 @@ cannot specify a return value\iref{stmt.return}.
 \pnum
 A constructor shall not be a coroutine.
 
+\pnum
+A constructor shall not have an explicit object parameter\iref{dcl.fct}.
+
 \rSec3[class.default.ctor]{Default constructors}
 
 \pnum
@@ -1243,38 +1247,34 @@ inline public member of its class.
 \pnum
 A defaulted default constructor for class \tcode{X} is defined as deleted if:
 \begin{itemize}
-\item \tcode{X} is a union that has a variant member
-with a non-trivial default constructor and
-no variant member of \tcode{X} has a default member initializer,
-
-\item \tcode{X} is a non-union class that has a variant member \tcode{M}
-with a non-trivial default constructor and
-no variant member of the anonymous union containing \tcode{M}
-has a default member initializer,
-
 \item any non-static data member with no default member initializer\iref{class.mem} is
 of reference type,
 
-\item any non-variant non-static data member of const-qualified type (or array
-thereof) with no \grammarterm{brace-or-equal-initializer}
+\item any non-variant non-static data member of const-qualified type
+(or possibly multi-dimensional array thereof)
+with no \grammarterm{brace-or-equal-initializer}
 is not const-default-constructible\iref{dcl.init},
 
 \item \tcode{X} is a union and all of its variant members are of const-qualified
-type (or array thereof),
+type (or possibly multi-dimensional array thereof),
 
 \item \tcode{X} is a non-union class and all members of any anonymous union member are
-of const-qualified type (or array thereof),
+of const-qualified type (or possibly multi-dimensional array thereof),
 
 \item any potentially constructed subobject, except for a non-static data member
-with a \grammarterm{brace-or-equal-initializer}, has
-class type \tcode{M} (or array thereof) and either \tcode{M}
-has no default constructor or overload resolution\iref{over.match}
-as applied to find \tcode{M}'s corresponding
-constructor results in an ambiguity or in a function that is deleted or
-inaccessible from the defaulted default constructor, or
+with a \grammarterm{brace-or-equal-initializer}
+or a variant member of a union where another non-static data member
+has a \grammarterm{brace-or-equal-initializer},
+has class type \tcode{M} (or possibly multi-dimensional array thereof)
+and overload resolution\iref{over.match}
+as applied to find \tcode{M}'s corresponding constructor
+either does not result in a usable candidate\iref{over.match.general}
+or, in the case of a variant member, selects a non-trivial function, or
 
-\item any potentially constructed subobject has a type
-with a destructor that is deleted or inaccessible from the defaulted default
+\item any potentially constructed subobject has
+class type \tcode{M} (or possibly multi-dimensional array thereof) and
+\tcode{M} has
+a destructor that is deleted or inaccessible from the defaulted default
 constructor.
 \end{itemize}
 
@@ -1309,8 +1309,8 @@ constructor for that class with no
 \grammarterm{compound-statement}.
 If that user-written default constructor would be ill-formed,
 the program is ill-formed.
-If that user-written default constructor would satisfy the requirements
-of a constexpr function\iref{dcl.constexpr}, the implicitly-defined
+If that user-written default constructor would be constexpr-suitable\iref{dcl.constexpr},
+the implicitly-defined
 default constructor is \keyword{constexpr}.
 Before the defaulted default constructor for a class is
 implicitly defined,
@@ -1539,18 +1539,16 @@ A defaulted copy/\brk{}move constructor for a class
   \tcode{X} is defined as deleted\iref{dcl.fct.def.delete} if \tcode{X} has:
 \begin{itemize}
 \item a potentially constructed subobject of type
-  \tcode{M} (or array thereof) that cannot be copied/moved because
+  \tcode{M} (or possibly multi-dimensional array thereof) for which
   overload resolution\iref{over.match}, as applied to find
-  \tcode{M}'s
-  corresponding constructor, results in an ambiguity or
-  a function that is deleted or inaccessible from the
-  defaulted constructor,
+  \tcode{M}'s corresponding constructor,
+  either does not result in a usable candidate\iref{over.match.general} or,
+  in the case of a variant member, selects a non-trivial function,
 
-\item a variant member whose corresponding constructor
-  as selected by overload resolution is non-trivial,
-
-\item any potentially constructed subobject of a type
-  with a destructor that is deleted or inaccessible from the defaulted
+\item any potentially constructed subobject of
+  class type \tcode{M} (or possibly multi-dimensional array thereof)
+  where \tcode{M} has
+  a destructor that is deleted or inaccessible from the defaulted
   constructor, or,
 
 \item for the copy constructor, a non-static data member of rvalue reference type.
@@ -1597,8 +1595,8 @@ otherwise the copy/move constructor is
 The copy/move constructor is implicitly defined even if the implementation elided
 its odr-use\iref{term.odr.use,class.temporary}.
 \end{note}
-If an implicitly-defined\iref{dcl.fct.def.default} constructor would satisfy the requirements of a
-constexpr function\iref{dcl.constexpr}, the implicitly-defined
+If an implicitly-defined\iref{dcl.fct.def.default} constructor would be constexpr-suitable\iref{dcl.constexpr},
+the implicitly-defined
 constructor is \keyword{constexpr}.
 
 \pnum
@@ -1676,10 +1674,6 @@ implicit declaration of a copy assignment operator. Such assignment operators
 participate in overload resolution with other assignment operators, including
 copy assignment operators, and, if selected, will be used to assign an object.
 \end{footnote}
-\begin{note}
-An overloaded assignment operator must be declared to have only one parameter;
-see~\ref{over.ass}.
-\end{note}
 \begin{note}
 More than one form of copy assignment operator can be declared for a class.
 \end{note}
@@ -1819,21 +1813,19 @@ inline public member of its class.
 A defaulted copy/move assignment operator for
 class \tcode{X} is defined as deleted if \tcode{X} has:
 \begin{itemize}
-\item a variant member with a non-trivial corresponding assignment operator and
-  \tcode{X} is a union-like class, or
-
 \item a non-static data member of \keyword{const} non-class
-  type (or array thereof), or
+  type (or possibly multi-dimensional array thereof), or
 
 \item a non-static data member of reference type, or
 
 \item a direct non-static data member of class type \tcode{M}
-  (or array thereof) or a direct base class \tcode{M}
+  (or possibly multi-dimensional array thereof) or
+  a direct base class \tcode{M}
   that cannot be copied/moved because overload resolution
  \iref{over.match}, as applied to find \tcode{M}'s corresponding
-  assignment operator, results in an ambiguity or
-  a function that is deleted or inaccessible from the
-  defaulted assignment operator.
+  assignment operator,
+  either does not result in a usable candidate\iref{over.match.general} or,
+  in the case of a variant member, selects a non-trivial function.
 \end{itemize}
 
 \begin{note}
@@ -1944,7 +1936,7 @@ is assigned twice by the implicitly-defined copy/move assignment operator for
 \end{example}
 
 \pnum
-The implicitly-defined copy assignment operator for a
+The implicitly-defined copy/move assignment operator for a
 union \tcode{X} copies the object representation\iref{term.object.representation} of \tcode{X}.
 If the source and destination of the assignment are not the same object, then
 for each object nested within\iref{intro.object}
@@ -2066,13 +2058,11 @@ has the same exception specification as if it had been implicitly declared\iref{
 A defaulted destructor for a class
   \tcode{X} is defined as deleted if:
 \begin{itemize}
-\item \tcode{X} is a union-like class that has a variant
-  member with a non-trivial destructor,
-
 \item any potentially constructed subobject has class type
-  \tcode{M} (or array thereof) and
-  \tcode{M} has a deleted destructor or a destructor
-  that is inaccessible from the defaulted destructor,
+  \tcode{M} (or possibly multi-dimensional array thereof) and
+  \tcode{M} has a destructor that is deleted or
+  is inaccessible from the defaulted destructor or,
+  in the case of a variant member, is non-trivial,
 
 \item or, for a virtual destructor, lookup of the non-array deallocation
   function results in an ambiguity or in a function that is deleted or
@@ -2095,7 +2085,7 @@ Otherwise, the destructor is
 
 \pnum
 A defaulted destructor is a constexpr destructor
-if it satisfies the requirements for a constexpr function\iref{dcl.constexpr}.
+if it is constexpr-suitable\iref{dcl.constexpr}.
 
 \pnum
 Before a
@@ -2485,17 +2475,16 @@ The type of the conversion function is
 returning \grammarterm{conversion-type-id}''.
 
 \pnum
-A conversion function is never used to convert a (possibly cv-qualified) object
-to the (possibly cv-qualified) same object type (or a reference to it),
-to a (possibly cv-qualified) base class of that type (or a reference to it),
+\begin{note}
+A conversion function is never invoked for
+implicit or explicit conversions of an object
+to the same object type (or a reference to it),
+to a base class of that type (or a reference to it),
 or to \cv{}~\keyword{void}.
-\begin{footnote}
-These conversions are considered
-as standard conversions for the purposes of overload resolution\iref{over.best.ics,over.ics.ref} and therefore initialization\iref{dcl.init} and explicit casts\iref{expr.static.cast}. A conversion to \keyword{void} does not invoke any conversion function\iref{expr.static.cast}.
 Even though never directly called to perform a conversion,
 such conversion functions can be declared and can potentially
 be reached through a call to a virtual conversion function in a base class.
-\end{footnote}
+\end{note}
 \begin{example}
 \begin{codeblock}
 struct X {
@@ -4270,6 +4259,19 @@ When a \grammarterm{using-declarator} is named,
 access control is applied to it, not to the declarations that replace it.
 For an overload set, access control is applied only to
 the function selected by overload resolution.
+\begin{example}
+\begin{codeblock}
+struct S {
+  void f(int);
+private:
+  void f(double);
+};
+
+void g(S* sp) {
+  sp->f(2);         // OK, access control applied after overload resolution
+}
+\end{codeblock}
+\end{example}
 \begin{note}
 Because access control applies to the declarations named, if access control is applied to a
 \grammarterm{typedef-name}, only the accessibility of the typedef or alias declaration itself is considered.
@@ -5444,8 +5446,8 @@ constructor of the constructor's class using any
 \grammarterm{class-or-decltype} that denotes the constructor's class itself. If a
 \grammarterm{mem-initializer-id} designates the constructor's class,
 it shall be the only \grammarterm{mem-initializer}; the constructor
-is a \term{delegating constructor}, and the constructor selected by the
-\grammarterm{mem-initializer} is the \term{target constructor}.
+is a \defnadj{delegating}{constructor}, and the constructor selected by the
+\grammarterm{mem-initializer} is the \defnadj{target}{constructor}.
 The target constructor is selected by overload resolution.
 Once the target constructor returns, the body of the delegating constructor
 is executed. If a constructor delegates to itself directly or indirectly,
@@ -6542,7 +6544,8 @@ is defined as follows:
 
 \begin{itemize}
 \item
-If \tcode{a <=> b} is usable\iref{class.compare.default},
+If \tcode{a <=> b} is usable\iref{class.compare.default} and
+can be explicitly converted to \tcode{R} using \keyword{static_cast},
 \tcode{static_cast<R>(a <=> b)}.
 
 \item
