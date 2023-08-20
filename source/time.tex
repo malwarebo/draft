@@ -20,7 +20,8 @@ utilities, as summarized in \tref{time.summary}.
 \ref{time.12}               & 12/24 hour functions               & \\
 \ref{time.zone}             & Time zones                         & \\
 \ref{time.format}           & Formatting                         & \\
-\ref{time.parse}            & Parsing                            & \\ \rowsep
+\ref{time.parse}            & Parsing                            & \\
+\ref{time.hash}             & Hash support                       & \\ \rowsep
 \ref{ctime.syn}             & C library time utilities           & \tcode{<ctime>} \\
 \end{libsumtab}
 
@@ -11552,7 +11553,7 @@ template<class Duration, class TimeZonePtr>
 
 \begin{itemdescr}
 \pnum
-The specialization \tcode{hash<chrono::zoned_time<Durationm TimeZonePtr>>}
+The specialization \tcode{hash<chrono::zoned_time<Duration, TimeZonePtr>>}
 is enabled\iref{unord.hash}
 if and only if \tcode{hash<Duration>} is enabled and
 \tcode{hash<TimeZonePtr>} is enabled.
