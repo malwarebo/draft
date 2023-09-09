@@ -6331,7 +6331,7 @@ constexpr const T* data() const noexcept;
 \pnum
 \returns
 A pointer such that \range{data()}{data() + size()} is a valid range. For a
-non-empty array, \tcode{data()} \tcode{==} \tcode{addressof(front())}.
+non-empty array, \tcode{data() == addressof(front())} is \keyword{true}.
 \end{itemdescr}
 
 \indexlibrarymember{array}{fill}%
@@ -9068,7 +9068,7 @@ constexpr const T*   data() const noexcept;
 \pnum
 \returns
 A pointer such that \range{data()}{data() + size()} is a valid range. For a
-non-empty vector, \tcode{data()} \tcode{==} \tcode{addressof(front())}.
+non-empty vector, \tcode{data() == addressof(front())} is \keyword{true}.
 
 \pnum
 \complexity
@@ -21757,8 +21757,8 @@ all of the following are \tcode{true}:
 \item
 if $S_k$ is a specialization of \tcode{strided_slice}
   \begin{itemize}
-  \item $\tcode{$s_k$.extent = 0}$, or
-  \item $\tcode{$s_k$.stride > 0}$
+  \item $\tcode{$s_k$.extent} = 0$, or
+  \item $\tcode{$s_k$.stride} > 0$
   \end{itemize}
 \item
 $0 \le \tcode{\exposid{first_}<IndexType, $k$>(slices...)}$
