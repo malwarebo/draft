@@ -2646,8 +2646,10 @@ Atomic read-modify-write operations shall always read the last value
 the read-modify-write operation.
 
 \pnum
-Implementations should make atomic stores visible to atomic loads within a reasonable
-amount of time.
+\recommended
+The implementation should make atomic stores visible to atomic loads,
+and atomic loads should observe atomic stores,
+within a reasonable amount of time.
 
 \indexlibraryglobal{kill_dependency}%
 \begin{itemdecl}
@@ -3710,6 +3712,7 @@ not also statically initializable can be difficult to use.
 
 \pnum
 The specialization \tcode{atomic<bool>} is a standard-layout struct.
+It has a trivial destructor.
 
 \pnum
 \begin{note}
@@ -10573,7 +10576,7 @@ member functions of \tcode{shared_future}.
 
 \pnum
 The effect of calling any member function other than the destructor, the
-move-assignment operator, \tcode{share}, or \tcode{valid} on a \tcode{future} object for which
+move assignment operator, \tcode{share}, or \tcode{valid} on a \tcode{future} object for which
 \tcode{valid() == false}
 is undefined.
 \begin{note}
@@ -10880,7 +10883,7 @@ but they synchronize with the shared state.
 
 \pnum
 The effect of calling any member function other than the destructor,
-the move-assignment operator, the copy-assignment operator, or
+the move assignment operator, the copy assignment operator, or
 \tcode{valid()} on a \tcode{shared_future} object for which \tcode{valid() == false} is undefined.
 \begin{note}
 It is valid to copy or move from a \tcode{shared_future}

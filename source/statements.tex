@@ -187,10 +187,9 @@ All
 \indextext{side effects}%
 side effects from an expression statement
 are completed before the next statement is executed.
-\indextext{statement!null}%
 \indextext{statement!empty}%
-An expression statement with the expression missing is called
-a \defn{null statement}.
+An expression statement with the \grammarterm{expression} missing is called
+a \defnadj{null}{statement}.
 \begin{note}
 Most statements are expression statements --- usually assignments or
 function calls. A null statement is useful to supply a null body to an
@@ -847,7 +846,7 @@ equivalent to \tcode{goto} \exposid{contin}.
 \indextext{function return|see{\tcode{return}}}%
 
 \pnum
-A function returns to its caller by the \tcode{return} statement.
+A function returns control to its caller by the \tcode{return} statement.
 
 \pnum
 The \grammarterm{expr-or-braced-init-list}
@@ -916,8 +915,8 @@ enclosing the \tcode{return} statement.
 \end{bnf}
 
 \pnum
-A coroutine returns to its caller or resumer\iref{dcl.fct.def.coroutine}
-by the \keyword{co_return} statement or when suspended\iref{expr.await}.
+A \keyword{co_return} statement transfers control to
+the caller or resumer of a coroutine\iref{dcl.fct.def.coroutine}.
 A coroutine shall not enclose
 a \tcode{return} statement\iref{stmt.return}.
 \begin{note}
@@ -951,7 +950,8 @@ shall be a prvalue of type \keyword{void}.
 \end{itemize}
 
 \pnum
-If \placeholder{p}\tcode{.return_void()} is a valid expression,
+If a search for the name \tcode{return_void} in the scope of the promise type
+finds any declarations,
 flowing off the end of a coroutine's \grammarterm{function-body}
 is equivalent to a \keyword{co_return} with no operand;
 otherwise flowing off the end of a coroutine's \grammarterm{function-body}

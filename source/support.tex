@@ -551,6 +551,7 @@ the values of these macros with greater values.
 \end{note}
 
 \begin{codeblock}
+#define @\defnlibxname{cpp_lib_adaptor_iterator_pair_constructor}@ 202106L // also in \libheader{stack}, \libheader{queue}
 #define @\defnlibxname{cpp_lib_addressof_constexpr}@               201603L // freestanding, also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_algorithm_iterator_requirements}@   202207L
   // also in \libheader{algorithm}, \libheader{numeric}, \libheader{memory}
@@ -558,7 +559,6 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_allocator_traits_is_always_equal}@  201411L
   // freestanding, also in \libheader{memory}, \libheader{scoped_allocator}, \libheader{string}, \libheader{deque}, \libheader{forward_list}, \libheader{list},
   // \libheader{vector}, \libheader{map}, \libheader{set}, \libheader{unordered_map}, \libheader{unordered_set}
-#define @\defnlibxname{cpp_lib_adaptor_iterator_pair_constructor}@ 202106L // also in \libheader{stack}, \libheader{queue}
 #define @\defnlibxname{cpp_lib_any}@                               201606L // also in \libheader{any}
 #define @\defnlibxname{cpp_lib_apply}@                             201603L // freestanding, also in \libheader{tuple}
 #define @\defnlibxname{cpp_lib_array_constexpr}@                   201811L // also in \libheader{iterator}, \libheader{array}
@@ -602,7 +602,7 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_constexpr_bitset}@                  202207L // also in \libheader{bitset}
 #define @\defnlibxname{cpp_lib_constexpr_charconv}@                202207L // also in \libheader{charconv}
 #define @\defnlibxname{cpp_lib_constexpr_cmath}@                   202306L // also in \libheader{cmath}, \libheader{cstdlib}
-#define @\defnlibxname{cpp_lib_constexpr_complex}@                 201711L // also in \libheader{complex}
+#define @\defnlibxname{cpp_lib_constexpr_complex}@                 202306L // also in \libheader{complex}
 #define @\defnlibxname{cpp_lib_constexpr_dynamic_alloc}@           201907L // also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_constexpr_functional}@              201907L // freestanding, also in \libheader{functional}
 #define @\defnlibxname{cpp_lib_constexpr_iterator}@                201811L // freestanding, also in \libheader{iterator}
@@ -619,6 +619,7 @@ the values of these macros with greater values.
   // \libheader{deque}, \libheader{queue}, \libheader{stack}, \libheader{string}
 #define @\defnlibxname{cpp_lib_copyable_function}@                 202306L // also in \libheader{functional}
 #define @\defnlibxname{cpp_lib_coroutine}@                         201902L // also in \libheader{coroutine}
+#define @\defnlibxname{cpp_lib_debugging}@                         202311L // freestanding, also in \libheader{debugging}
 #define @\defnlibxname{cpp_lib_destroying_delete}@                 201806L // freestanding, also in \libheader{new}
 #define @\defnlibxname{cpp_lib_enable_shared_from_this}@           201603L // also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_endian}@                            201907L // freestanding, also in \libheader{bit}
@@ -631,26 +632,35 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_filesystem}@                        201703L // also in \libheader{filesystem}
 #define @\defnlibxname{cpp_lib_flat_map}@                          202207L // also in \libheader{flat_map}
 #define @\defnlibxname{cpp_lib_flat_set}@                          202207L // also in \libheader{flat_set}
-#define @\defnlibxname{cpp_lib_format}@                            202306L // also in \libheader{format}
+#define @\defnlibxname{cpp_lib_format}@                            202311L // also in \libheader{format}
 #define @\defnlibxname{cpp_lib_format_ranges}@                     202207L // also in \libheader{format}
+#define @\defnlibxname{cpp_lib_format_uchar}@                      202311L // also in \libheader{format}
 #define @\defnlibxname{cpp_lib_formatters}@                        202302L // also in \libheader{stacktrace}, \libheader{thread}
 #define @\defnlibxname{cpp_lib_forward_like}@                      202207L // freestanding, also in \libheader{utility}
+#define @\defnlibxname{cpp_lib_freestanding_algorithm}@            202311L // freestanding, also in \libheader{algorithm}
+#define @\defnlibxname{cpp_lib_freestanding_array}@                202311L // freestanding, also in \libheader{array}
 #define @\defnlibxname{cpp_lib_freestanding_char_traits}@          202306L // freestanding, also in \libheader{string}
 #define @\defnlibxname{cpp_lib_freestanding_charconv}@             202306L // freestanding, also in \libheader{charconv}
 #define @\defnlibxname{cpp_lib_freestanding_cstdlib}@              202306L // freestanding, also in \libheader{cstdlib}, \libheader{cmath}
-#define @\defnlibxname{cpp_lib_freestanding_cstring}@              202306L // freestanding, also in \libheader{cstring}
+#define @\defnlibxname{cpp_lib_freestanding_cstring}@              202311L // freestanding, also in \libheader{cstring}
 #define @\defnlibxname{cpp_lib_freestanding_cwchar}@               202306L // freestanding, also in \libheader{cwchar}
 #define @\defnlibxname{cpp_lib_freestanding_errc}@                 202306L
   // freestanding, also in \libheader{cerrno}, \libheader{system_error}
+#define @\defnlibxname{cpp_lib_freestanding_expected}@             202311L // freestanding, also in \libheader{expected}
 #define @\defnlibxname{cpp_lib_freestanding_feature_test_macros}@  202306L // freestanding
 #define @\defnlibxname{cpp_lib_freestanding_functional}@           202306L // freestanding, also in \libheader{functional}
 #define @\defnlibxname{cpp_lib_freestanding_iterator}@             202306L // freestanding, also in \libheader{iterator}
+#define @\defnlibxname{cpp_lib_freestanding_mdspan}@               202311L // freestanding, also in \libheader{mdspan}
 #define @\defnlibxname{cpp_lib_freestanding_memory}@               202306L // freestanding, also in \libheader{memory}
+#define @\defnlibxname{cpp_lib_freestanding_numeric}@              202311L // freestanding, also in \libheader{numeric}
 #define @\defnlibxname{cpp_lib_freestanding_operator_new}@         @\seebelow@ // freestanding, also in \libheader{new}
+#define @\defnlibxname{cpp_lib_freestanding_optional}@             202311L // freestanding, also in \libheader{optional}
 #define @\defnlibxname{cpp_lib_freestanding_ranges}@               202306L // freestanding, also in \libheader{ranges}
 #define @\defnlibxname{cpp_lib_freestanding_ratio}@                202306L // freestanding, also in \libheader{ratio}
+#define @\defnlibxname{cpp_lib_freestanding_string_view}@          202311L // freestanding, also in \libheader{string_view}
 #define @\defnlibxname{cpp_lib_freestanding_tuple}@                202306L // freestanding, also in \libheader{tuple}
 #define @\defnlibxname{cpp_lib_freestanding_utility}@              202306L // freestanding, also in \libheader{utility}
+#define @\defnlibxname{cpp_lib_freestanding_variant}@              202311L // freestanding, also in \libheader{variant}
 #define @\defnlibxname{cpp_lib_fstream_native_handle}@             202306L // also in \libheader{fstream}
 #define @\defnlibxname{cpp_lib_function_ref}@                      202306L // also in \libheader{functional}
 #define @\defnlibxname{cpp_lib_gcd_lcm}@                           201606L // also in \libheader{numeric}
@@ -687,6 +697,7 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_jthread}@                           201911L // also in \libheader{stop_token}, \libheader{thread}
 #define @\defnlibxname{cpp_lib_latch}@                             201907L // also in \libheader{latch}
 #define @\defnlibxname{cpp_lib_launder}@                           201606L // freestanding, also in \libheader{new}
+#define @\defnlibxname{cpp_lib_linalg}@                            202311L // also in \libheader{linalg}
 #define @\defnlibxname{cpp_lib_list_remove_return_type}@           201806L // also in \libheader{forward_list}, \libheader{list}
 #define @\defnlibxname{cpp_lib_logical_traits}@                    201510L // freestanding, also in \libheader{type_traits}
 #define @\defnlibxname{cpp_lib_make_from_tuple}@                   201606L // freestanding, also in \libheader{tuple}
@@ -708,14 +719,14 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_not_fn}@                            202306L // freestanding, also in \libheader{functional}
 #define @\defnlibxname{cpp_lib_null_iterators}@                    201304L // freestanding, also in \libheader{iterator}
 #define @\defnlibxname{cpp_lib_optional}@                          202110L // also in \libheader{optional}
-#define @\defnlibxname{cpp_lib_out_ptr}@                           202106L // also in \libheader{memory}
+#define @\defnlibxname{cpp_lib_out_ptr}@                           202311L // freestanding, also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_parallel_algorithm}@                201603L // also in \libheader{algorithm}, \libheader{numeric}
 #define @\defnlibxname{cpp_lib_polymorphic_allocator}@             201902L // also in \libheader{memory_resource}
 #define @\defnlibxname{cpp_lib_print}@                             202207L // also in \libheader{print}, \libheader{ostream}
 #define @\defnlibxname{cpp_lib_quoted_string_io}@                  201304L // also in \libheader{iomanip}
 #define @\defnlibxname{cpp_lib_ranges}@                            202302L
   // also in \libheader{algorithm}, \libheader{functional}, \libheader{iterator}, \libheader{memory}, \libheader{ranges}
-#define @\defnlibxname{cpp_lib_ranges_as_const}@                   202207L // freestanding, also in \libheader{ranges}
+#define @\defnlibxname{cpp_lib_ranges_as_const}@                   202311L // freestanding, also in \libheader{ranges}
 #define @\defnlibxname{cpp_lib_ranges_as_rvalue}@                  202207L // freestanding, also in \libheader{ranges}
 #define @\defnlibxname{cpp_lib_ranges_cartesian_product}@          202207L // freestanding, also in \libheader{ranges}
 #define @\defnlibxname{cpp_lib_ranges_chunk}@                      202202L // freestanding, also in \libheader{ranges}
@@ -742,6 +753,7 @@ the values of these macros with greater values.
   // freestanding, also in \libheader{functional}, \libheader{type_traits}
 #define @\defnlibxname{cpp_lib_robust_nonmodifying_seq_ops}@       201304L // also in \libheader{algorithm}
 #define @\defnlibxname{cpp_lib_sample}@                            201603L // also in \libheader{algorithm}
+#define @\defnlibxname{cpp_lib_saturation_arithmetic}@             202311L // also in \libheader{numeric}
 #define @\defnlibxname{cpp_lib_scoped_lock}@                       201703L // also in \libheader{mutex}
 #define @\defnlibxname{cpp_lib_semaphore}@                         201907L // also in \libheader{semaphore}
 #define @\defnlibxname{cpp_lib_shared_mutex}@                      201505L // also in \libheader{shared_mutex}
@@ -749,10 +761,11 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_shared_ptr_weak_type}@              201606L // also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_shared_timed_mutex}@                201402L // also in \libheader{shared_mutex}
 #define @\defnlibxname{cpp_lib_shift}@                             202202L // also in \libheader{algorithm}
-#define @\defnlibxname{cpp_lib_smart_ptr_owner_equality}@          202306L // also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_smart_ptr_for_overwrite}@           202002L // also in \libheader{memory}
+#define @\defnlibxname{cpp_lib_smart_ptr_owner_equality}@          202306L // also in \libheader{memory}
 #define @\defnlibxname{cpp_lib_source_location}@                   201907L // freestanding, also in \libheader{source_location}
-#define @\defnlibxname{cpp_lib_span}@                              202002L // also in \libheader{span}
+#define @\defnlibxname{cpp_lib_span}@                              202311L // freestanding, also in \libheader{span}
+#define @\defnlibxname{cpp_lib_span_initializer_list}@             202311L // also in \libheader{span}
 #define @\defnlibxname{cpp_lib_spanstream}@                        202106L // also in \libheader{spanstream}
 #define @\defnlibxname{cpp_lib_ssize}@                             201902L // freestanding, also in \libheader{iterator}
 #define @\defnlibxname{cpp_lib_sstream_from_string_view}@          202306L // also in \libheader{sstream}
@@ -776,9 +789,9 @@ the values of these macros with greater values.
 #define @\defnlibxname{cpp_lib_transformation_trait_aliases}@      201304L // freestanding, also in \libheader{type_traits}
 #define @\defnlibxname{cpp_lib_transparent_operators}@             201510L
   // freestanding, also in \libheader{memory}, \libheader{functional}
-#define @\defnlibxname{cpp_lib_tuple_like}@                        202207L
-  // also in \libheader{utility}, \libheader{tuple}, \libheader{map}, \libheader{unordered_map}
 #define @\defnlibxname{cpp_lib_tuple_element_t}@                   201402L // freestanding, also in \libheader{tuple}
+#define @\defnlibxname{cpp_lib_tuple_like}@                        202311L
+  // also in \libheader{utility}, \libheader{tuple}, \libheader{map}, \libheader{unordered_map}
 #define @\defnlibxname{cpp_lib_tuples_by_type}@                    201304L // freestanding, also in \libheader{utility}, \libheader{tuple}
 #define @\defnlibxname{cpp_lib_type_identity}@                     201806L // freestanding, also in \libheader{type_traits}
 #define @\defnlibxname{cpp_lib_type_trait_variable_templates}@     201510L // freestanding, also in \libheader{type_traits}
@@ -1069,7 +1082,7 @@ For integer types, the number of non-sign bits in the representation.
 
 \pnum
 For floating-point types, the number of \tcode{radix} digits in the
-mantissa.
+significand.
 \begin{footnote}
 Equivalent to \tcode{FLT_MANT_DIG}, \tcode{DBL_MANT_DIG},
 \tcode{LDBL_MANT_DIG}.
@@ -6164,6 +6177,6 @@ global namespace.
 The header \libheader{stdlib.h}
 assuredly provides the same declarations and definitions within
 the global namespace,
-much as in the C Standard. It may also provide these names within
+much as in \IsoCUndated{}. It may also provide these names within
 the namespace \tcode{std}.
 \end{example}

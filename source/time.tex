@@ -8736,7 +8736,7 @@ the value returned is unspecified.
 
 \pnum
 \ref{time.zone} describes an interface for accessing
-the IANA Time Zone Database
+the IANA Time Zone Database\supercite{iana-tz}
 that interoperates with \tcode{sys_time} and \tcode{local_time}.
 This interface provides time zone support to
 both the civil calendar types\iref{time.cal}
@@ -10159,7 +10159,7 @@ are constructed and stored in the time zone database when initialized.
 \begin{example}
 \begin{codeblock}
 for (auto& l : get_tzdb().leap_seconds)
-  if (l <= 2018y/March/17d)
+  if (l <= sys_days{2018y/March/17d})
     cout << l.date() << ": " << l.value() << '\n';
 \end{codeblock}
 
@@ -10533,7 +10533,7 @@ the global locale.
 Each conversion specifier \fmtgrammarterm{conversion-spec}
 is replaced by appropriate characters
 as described in \tref{time.format.spec};
-the formats specified in ISO 8601:2004 shall be used where so described.
+the formats specified in ISO 8601-1:2019 shall be used where so described.
 Some of the conversion specifiers
 depend on the formatting locale.
 If the string literal encoding is a Unicode encoding form and
@@ -10793,7 +10793,7 @@ The modified command \tcode{\%EY} produces
 the locale's alternative full year representation.
 \\ \rowsep
 \tcode{\%z} &
-The offset from UTC in the ISO 8601:2004 format.
+The offset from UTC as specified in ISO 8601-1:2019, subclause 5.3.4.1.
 For example \tcode{-0430} refers to 4 hours 30 minutes behind UTC\@.
 If the offset is zero, \tcode{+0000} is used.
 The modified commands \tcode{\%Ez} and  \tcode{\%Oz}

@@ -570,19 +570,19 @@ namespace std {
 
   // \ref{out.ptr.t}, class template \tcode{out_ptr_t}
   template<class Smart, class Pointer, class... Args>
-    class out_ptr_t;
+    class out_ptr_t;                                                                // freestanding
 
   // \ref{out.ptr}, function template \tcode{out_ptr}
   template<class Pointer = void, class Smart, class... Args>
-    auto out_ptr(Smart& s, Args&&... args);
+    auto out_ptr(Smart& s, Args&&... args);                                         // freestanding
 
   // \ref{inout.ptr.t}, class template \tcode{inout_ptr_t}
   template<class Smart, class Pointer, class... Args>
-    class inout_ptr_t;
+    class inout_ptr_t;                                                              // freestanding
 
   // \ref{inout.ptr}, function template \tcode{inout_ptr}
   template<class Pointer = void, class Smart, class... Args>
-    auto inout_ptr(Smart& s, Args&&... args);
+    auto inout_ptr(Smart& s, Args&&... args);                                       // freestanding
 }
 \end{codeblock}
 
@@ -881,7 +881,7 @@ template<class T>
 \begin{itemdescr}
 \pnum
 \mandates
-\tcode{T} is an implicit-lifetime type\iref{basic.types.general}
+\tcode{T} is an implicit-lifetime type\iref{term.implicit.lifetime.type}
 and not an incomplete type\iref{term.incomplete.type}.
 
 \pnum
@@ -902,7 +902,7 @@ as follows:
 The object representation of \placeholder{a}
 is the contents of the storage prior to the call to \tcode{start_lifetime_as}.
 The value of each created object \placeholder{o}
-of trivially-copyable type \tcode{U}
+of trivially copyable type\iref{term.trivially.copyable.type} \tcode{U}
 is determined in the same manner as for a call
 to \tcode{bit_cast<U>(E)}\iref{bit.cast},
 where \tcode{E} is an lvalue of type \tcode{U} denoting \placeholder{o},
@@ -2779,7 +2779,7 @@ Equivalent to \tcode{reset(pointer())}.
 
 \indexlibrarymember{reset}{unique_ptr}%
 \begin{itemdecl}
-constexpr template<class U> void reset(U p) noexcept;
+template<class U> constexpr void reset(U p) noexcept;
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -4311,7 +4311,7 @@ template<class T>
 \pnum
 \returns
 \begin{codeblock}
-compare_three_way()(a.get(), static_cast<typename shared_ptr<T>::element_type*>(nullptr).
+compare_three_way()(a.get(), static_cast<typename shared_ptr<T>::element_type*>(nullptr))
 \end{codeblock}
 \end{itemdescr}
 
@@ -5451,10 +5451,8 @@ Equivalent to:
 % pretend to \item that there is real text here, but undo the vertical spacing
 \mbox{}\vspace{-\baselineskip}\vspace{-\parskip}
 \begin{codeblock}
-if (p) {
-  apply([&](auto&&... args) {
-    s = Smart( static_cast<SP>(p), std::forward<Args>(args)...); }, std::move(a));
-}
+apply([&](auto&&... args) {
+  s = Smart(static_cast<SP>(p), std::forward<Args>(args)...); }, std::move(a));
 \end{codeblock}
 if \tcode{is_pointer_v<Smart>} is \tcode{true};
 \item
@@ -6310,7 +6308,7 @@ If the value of \tcode{max_blocks_per_chunk} is zero or
 is greater than an \impldef{largest supported value to configure the maximum number of blocks to replenish a pool}
 limit, that limit is used instead.
 The implementation
-may choose to use a smaller value than is specified in this field and
+may choose to use a smaller value than is specified in this member and
 may use different values for different pools.
 \end{itemdescr}
 
@@ -6329,7 +6327,7 @@ If \tcode{largest_required_pool_block} is zero or
 is greater than an \impldef{largest supported value to configure the largest allocation satisfied directly by a pool}
 limit, that limit is used instead.
 The implementation may choose a pass-through threshold
-larger than specified in this field.
+larger than specified in this member.
 \end{itemdescr}
 
 \rSec3[mem.res.pool.ctor]{Constructors and destructors}

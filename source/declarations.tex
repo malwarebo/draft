@@ -77,7 +77,7 @@ the form
 \begin{bnf}
 \nontermdef{static_assert-message}\br
   unevaluated-string\br
-  conditional-expression
+  constant-expression
 \end{bnf}
 
 \begin{bnf}
@@ -291,7 +291,7 @@ the \grammarterm{static_assert-declaration} \defnx{fails}{\idxcode{static_assert
 the program is ill-formed, and
 \item
 if the \grammarterm{static_assert-message} is
-a \grammarterm{conditional-expression} $M$,
+a \grammarterm{constant-expression} $M$,
 \begin{itemize}
 \item
 \tcode{$M$.size()} shall be a converted constant expression of
@@ -331,8 +331,8 @@ void f(T t) {
 }
 
 void g(char c) {
-  f(0);                                 // OK
-  f(c);                                 // error on implementations where \tcode{sizeof(int) > 1}: must be \tcode{int}-sized
+  f(0);             // OK
+  f(c);             // error on implementations where \tcode{sizeof(int) > 1}: must be \tcode{int}-sized
 }
 \end{codeblock}
 \end{example}
@@ -813,6 +813,7 @@ The \keyword{consteval} specifier shall be applied only to
 the declaration of a function or function template.
 A function or static data member
 declared with the \keyword{constexpr} or \keyword{consteval} specifier
+on its first declaration
 is implicitly an inline function or variable\iref{dcl.inline}.
 If any declaration of a function or function template has
 a \keyword{constexpr} or \keyword{consteval} specifier,
@@ -1285,7 +1286,7 @@ The simple type specifiers are
 \nontermdef{simple-type-specifier}\br
     \opt{nested-name-specifier} type-name\br
     nested-name-specifier \keyword{template} simple-template-id\br
-    decltype-specifier\br
+    computed-type-specifier\br
     placeholder-type-specifier\br
     \opt{nested-name-specifier} template-name\br
     \keyword{char}\br
@@ -1309,6 +1310,12 @@ The simple type specifiers are
     class-name\br
     enum-name\br
     typedef-name
+\end{bnf}
+
+\begin{bnf}
+\nontermdef{computed-type-specifier}\br
+    decltype-specifier\br
+    pack-index-specifier
 \end{bnf}
 
 \pnum
@@ -1382,6 +1389,7 @@ and the types they specify.
 \grammarterm{type-name}           & the type named                    \\
 \grammarterm{simple-template-id}  & the type as defined in~\ref{temp.names}\\
 \grammarterm{decltype-specifier}  & the type as defined in~\ref{dcl.type.decltype}\\
+\grammarterm{pack-index-specifier} & the type as defined in~\ref{dcl.type.pack.index}\\
 \grammarterm{placeholder-type-specifier}
                                   & the type as defined in~\ref{dcl.spec.auto}\\
 \grammarterm{template-name}       & the type as defined in~\ref{dcl.type.class.deduct}\\
@@ -1429,6 +1437,32 @@ freely intermixed with other \grammarterm{decl-specifier}{s} in any order.
 It is \impldef{signedness of \tcode{char}} whether objects of \tcode{char} type are
 represented as signed or unsigned quantities. The \tcode{signed} specifier
 forces \tcode{char} objects to be signed; it is redundant in other contexts.
+\end{note}
+
+\rSec3[dcl.type.pack.index]{Pack indexing specifier}
+
+\begin{bnf}
+\nontermdef{pack-index-specifier}\br
+    typedef-name \terminal{...} \terminal{[} constant-expression \terminal{]}
+\end{bnf}
+
+\pnum
+The \grammarterm{typedef-name} $P$ in a \grammarterm{pack-index-specifier}
+shall denote a pack.
+
+\pnum
+The \grammarterm{constant-expression} shall be
+a converted constant expression\iref{expr.const} of type \tcode{std::size_t}
+whose value $V$, termed the index,
+is such that $0 \le V < \tcode{sizeof...($P$)}$.
+
+\pnum
+A \grammarterm{pack-index-specifier} is a pack expansion\iref{temp.variadic}.
+
+\pnum
+\begin{note}
+The \grammarterm{pack-index-specifier} denotes
+the type of the $V^\text{th}$ element of the pack.
 \end{note}
 
 \rSec3[dcl.type.elab]{Elaborated type specifiers}%
@@ -1604,6 +1638,13 @@ decltype(foo()) x1 = 17;        // type is \tcode{const int\&\&}
 decltype(i) x2;                 // type is \tcode{int}
 decltype(a->x) x3;              // type is \tcode{double}
 decltype((a->x)) x4 = x3;       // type is \tcode{const double\&}
+
+void f() {
+  [](auto ...pack) {
+    decltype(pack...[0]) x5;    // type is \tcode{int}
+    decltype((pack...[0])) x6;  // type is \tcode{int\&}
+  }(0);
+}
 \end{codeblock}
 \end{example}
 \begin{note}
@@ -2162,7 +2203,7 @@ in place of a \grammarterm{declarator}\iref{dcl.fct,except.pre},
 it is as if a unique identifier were included in
 the appropriate place\iref{dcl.name}.
 The preceding specifiers indicate
-the type, storage class or other properties
+the type, storage duration, linkage, or other properties
 of the entity or entities being declared.
 Each declarator specifies one entity and
 (optionally) names it and/or
@@ -2366,7 +2407,6 @@ of that type that omits the name of the entity.
 \begin{bnf}
 \nontermdef{noptr-abstract-pack-declarator}\br
     noptr-abstract-pack-declarator parameters-and-qualifiers\br
-    noptr-abstract-pack-declarator \terminal{[} \opt{constant-expression} \terminal{]} \opt{attribute-specifier-seq}\br
     \terminal{...}
 \end{bnf}
 
@@ -2402,8 +2442,11 @@ returning
 \end{example}
 
 \pnum
-A type can also be named (often more easily) by using a
-\tcode{typedef}\iref{dcl.typedef}.
+\begin{note}
+A type can also be named by a \grammarterm{typedef-name},
+which is introduced by a typedef declaration
+or \grammarterm{alias-declaration}\iref{dcl.typedef}.
+\end{note}
 
 \rSec2[dcl.ambig.res]{Ambiguity resolution}%
 \indextext{ambiguity!declaration versus cast}%
@@ -2754,7 +2797,8 @@ In a declaration
 \tcode{D}
 where
 \tcode{D}
-is an unadorned name, the type of the declared entity is
+is an unadorned \grammarterm{declarator-id},
+the type of the declared entity is
 ``\tcode{T}''.
 
 \pnum
@@ -4022,9 +4066,7 @@ A default argument shall be specified only in the
 of a function declaration
 or \grammarterm{lambda-declarator}
 or in a
-\grammarterm{template-parameter}\iref{temp.param};
-in the latter case, the \grammarterm{initializer-clause} shall be an
-\grammarterm{assignment-expression}.
+\grammarterm{template-parameter}\iref{temp.param}.
 A default argument shall not be specified for
 a template parameter pack or
 a function parameter pack.
@@ -4477,7 +4519,10 @@ is called, with an empty argument list, to initialize the object.
 \item
 If
 \tcode{T}
-is an array type, each element is default-initialized.
+is an array type,
+the semantic constraints of default-initializing a hypothetical element
+shall be met and
+each element is default-initialized.
 
 \item
 Otherwise,
@@ -4516,9 +4561,10 @@ To
 an object of type
 \tcode{T}
 means:
+
 \begin{itemize}
 \item
-if
+If
 \tcode{T}
 is a (possibly cv-qualified) class type\iref{class}, then
 \begin{itemize}
@@ -4530,15 +4576,19 @@ constructor that is user-provided or deleted, then the object is default-initial
 otherwise,
 the object is zero-initialized and the semantic constraints for
 default-initialization are checked, and if \tcode{T} has a
-non-trivial default constructor, the object is default-initialized;
+non-trivial default constructor, the object is default-initialized.
 \end{itemize}
-\item
-if
-\tcode{T}
-is an array type, then each element is value-initialized;
 
 \item
-otherwise, the object is zero-initialized.
+If
+\tcode{T}
+is an array type,
+the semantic constraints of value-initializing a hypothetical element
+shall be met and
+each element is value-initialized.
+
+\item
+Otherwise, the object is zero-initialized.
 \end{itemize}
 
 \pnum
@@ -5084,6 +5134,7 @@ expression not enclosed in braces, as described in~\ref{dcl.init}.
 
 \pnum
 The destructor for each element of class type
+other than an anonymous union member
 is potentially invoked\iref{class.dtor}
 from the context where the aggregate initialization occurs.
 \begin{note}
@@ -5656,11 +5707,10 @@ B&& rrb = x;                        // binds directly to the result of \tcode{op
 \end{example}
 
 \item
-Otherwise:
+Otherwise, \tcode{T1} shall not be reference-related to \tcode{T2}.
 \begin{itemize}
 \item
-If \tcode{T1} or \tcode{T2} is a class type and
-\tcode{T1} is not reference-related to \tcode{T2},
+If \tcode{T1} or \tcode{T2} is a class type,
 user-defined conversions are considered
 using the rules for copy-initialization of an object of type
 ``\cvqual{cv1} \tcode{T1}'' by
@@ -5677,24 +5727,6 @@ of type ``\tcode{T1}''.
 The temporary materialization conversion is applied,
 considering the type of the prvalue to be ``\cvqual{cv1} \tcode{T1}'',
 and the reference is bound to the result.
-\end{itemize}
-
-If
-\tcode{T1}
-is reference-related to
-\tcode{T2}:
-\begin{itemize}
-\item
-\cvqual{cv1}
-shall be the same cv-qualification as, or greater cv-qualification than,
-\cvqual{cv2}; and
-\item
-if the reference is an rvalue reference,
-the initializer expression shall not be an lvalue.
-\begin{note}
-This can be affected by
-whether the initializer expression is move-eligible\iref{expr.prim.id.unqual}.
-\end{note}
 \end{itemize}
 
 \begin{example}
@@ -5717,9 +5749,10 @@ struct A { operator volatile int&(); } a;
 const int& r3 = a;                  // error: cv-qualifier dropped
                                     // from result of conversion function
 double d2 = 1.0;
-double&& rrd2 = d2;                 // error: initializer is lvalue of related type
+double&& rrd2 = d2;                 // error: initializer is lvalue of reference-related type
 struct X { operator int&(); };
-int&& rri2 = X();                   // error: result of conversion function is lvalue of related type
+int&& rri2 = X();                   // error: result of conversion function is
+                                    // lvalue of reference-related type
 int i3 = 2;
 double&& rrd3 = i3;                 // \tcode{rrd3} refers to temporary with value \tcode{2.0}
 \end{codeblock}
@@ -5755,6 +5788,8 @@ List-initialization can occur in direct-initialization or copy-initialization co
 list-initialization in a direct-initialization context is called
 \defn{direct-list-initialization} and list-initialization in a
 copy-initialization context is called \defn{copy-list-initialization}.
+Direct-initialization that is not list-initialization is called
+\defn{direct-non-list-initialization}.
 \begin{note}
 List-initialization can be used
 \begin{itemize}
@@ -5763,6 +5798,7 @@ List-initialization can be used
 \item in a \tcode{return} statement\iref{stmt.return}
 \item as a \grammarterm{for-range-initializer}\iref{stmt.iter}
 \item as a function argument\iref{expr.call}
+\item as a template argument\iref{temp.arg.nontype}
 \item as a subscript\iref{expr.sub}
 \item as an argument to a constructor invocation\iref{dcl.init,expr.type.conv}
 \item as an initializer for a non-static data member\iref{class.mem}
@@ -5907,7 +5943,7 @@ S s3 { };                           // OK, invoke \#2
 
 \item Otherwise, if \tcode{T} is an enumeration
 with a fixed underlying type\iref{dcl.enum} \tcode{U},
-the \grammarterm{initializer-list} has a single element \tcode{v},
+the \grammarterm{initializer-list} has a single element \tcode{v} of scalar type,
 \tcode{v} can be implicitly converted to \tcode{U}, and
 the initialization is direct-list-initialization,
 the object is initialized with the value \tcode{T(v)}\iref{expr.type.conv};
@@ -6053,8 +6089,9 @@ accessible\iref{class.access} in the context of the initializer list.
 \end{note}
 If a narrowing conversion is required to initialize any of the elements,
 the program is ill-formed.
-Whether all backing arrays are distinct
-(that is, are stored in non-overlapping objects) is unspecified.
+\begin{note}
+Backing arrays are potentially non-unique objects\iref{intro.object}.
+\end{note}
 
 \pnum
 The backing array has the same lifetime as any other temporary
@@ -6217,7 +6254,12 @@ Function definitions have the form
 \end{bnf}
 
 Any informal reference to the body of a function should be interpreted as a reference to
-the non-terminal \grammarterm{function-body}.
+the non-terminal \grammarterm{function-body},
+including, for a constructor,
+default member initializers or default initialization
+used to initialize
+a base or member subobject in the absence of
+a \grammarterm{mem-initializer-id}\iref{class.base.init}.
 The optional \grammarterm{attribute-specifier-seq} in a \grammarterm{function-definition}
 appertains to the function.
 A \grammarterm{virt-specifier-seq} can be part of a \grammarterm{function-definition}
@@ -6378,6 +6420,9 @@ A function explicitly defaulted on its first declaration
 is implicitly inline\iref{dcl.inline},
 and is implicitly constexpr\iref{dcl.constexpr}
 if it is constexpr-suitable.
+\begin{note}
+Other defaulted functions are not implicitly constexpr.
+\end{note}
 
 \pnum
 \begin{example}
@@ -6600,10 +6645,10 @@ In the following, $\tcode{p}_i$ is an lvalue of type $\tcode{P}_i$,
 where
 $\tcode{p}_1$ denotes the object parameter and
 $\tcode{p}_{i+1}$ denotes the $i^\text{th}$ non-object function parameter
-for a non-static member function, and
+for an implicit object member function, and
 $\tcode{p}_i$ denotes
 the $i^\text{th}$ function parameter otherwise.
-For a non-static member function,
+For an implicit object member function,
 $\tcode{q}_1$ is an lvalue that denotes \tcode{*this};
 any other $\tcode{q}_i$ is an lvalue
 that denotes the parameter copy corresponding to $\tcode{p}_i$,
@@ -6737,7 +6782,7 @@ and if a global allocation function is selected,
 the \tcode{::operator new(size_t, nothrow_t)} form is used.
 The allocation function used in this case shall have a non-throwing
 \grammarterm{noexcept-specifier}.
-If the allocation function returns \keyword{nullptr}, the coroutine returns
+If the allocation function returns \keyword{nullptr}, the coroutine transfers
 control to the caller of the coroutine and the return value is obtained by a
 call to \tcode{T::get_return_object_on_allocation_failure()}, where \tcode{T}
 is the promise type.
@@ -7099,12 +7144,11 @@ the name of multiple enumerators in an \grammarterm{enumerator-list}.
 An \grammarterm{enumerator-definition} with \tcode{=} gives the associated
 \grammarterm{enumerator} the value indicated by the
 \grammarterm{constant-expression}.
-If the first \grammarterm{enumerator}
-has no \grammarterm{initializer}, the value of the corresponding constant
-is zero. An \grammarterm{enumerator-definition} without an
-\grammarterm{initializer} gives the \grammarterm{enumerator} the value
-obtained by increasing the value of the previous \grammarterm{enumerator}
-by one.
+An \grammarterm{enumerator-definition} without \tcode{=} gives the associated
+\grammarterm{enumerator} the value zero
+if it is the first \grammarterm{enumerator-definition},
+and the value of the previous \grammarterm{enumerator}
+increased by one otherwise.
 \begin{example}
 \begin{codeblock}
 enum { a, b, c=0 };
@@ -8481,7 +8525,7 @@ is treated as if it contains the
 \keyword{extern}
 specifier\iref{dcl.stc} for the purpose of determining the linkage of the
 declared name and whether it is a definition. Such a declaration shall
-not specify a storage class.
+not have a \grammarterm{storage-class-specifier}.
 \begin{example}
 \begin{codeblock}
 extern "C" double f();
@@ -9125,15 +9169,18 @@ int f(int n) {
 
 \pnum
 The \grammarterm{attribute-token} \tcode{maybe_unused}
-indicates that a name or entity is possibly intentionally unused.
+indicates that a name, label, or entity is possibly intentionally unused.
 No \grammarterm{attribute-argument-clause} shall be present.
 
 \pnum
 The attribute may be applied to the declaration of a class,
-a \grammarterm{typedef-name},
-a variable (including a structured binding declaration),
-a non-static data member,
-a function, an enumeration, or an enumerator.
+\grammarterm{typedef-name},
+variable (including a structured binding declaration),
+non-static data member,
+function,
+enumeration, or
+enumerator, or
+to an \grammarterm{identifier} label\iref{stmt.label}.
 
 \pnum
 A name or entity declared without the \tcode{maybe_unused} attribute
@@ -9151,6 +9198,8 @@ are used or unused.
 For a structured binding declaration not marked \tcode{maybe_unused},
 implementations should not emit such a warning unless
 all of its structured bindings are unused.
+For a label to which \tcode{maybe_unused} is applied,
+implementations should not emit a warning that the label is used or unused.
 The value of
 a \grammarterm{has-attribute-expression} for the \tcode{maybe_unused} attribute
 should be \tcode{0}
@@ -9163,9 +9212,13 @@ if the attribute does not cause suppression of such warnings.
                         [[maybe_unused]] bool thing2) {
   [[maybe_unused]] bool b = thing1 && thing2;
   assert(b);
+#ifdef NDEBUG
+  goto x;
+#endif
+  [[maybe_unused]] x:
 }
 \end{codeblock}
-Implementations should not warn that \tcode{b} is unused,
+Implementations should not warn that \tcode{b} or \tcode{x} is unused,
 whether or not \tcode{NDEBUG} is defined.
 \end{example}
 

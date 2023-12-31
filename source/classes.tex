@@ -63,7 +63,7 @@ shall be an explicit specialization\iref{temp.expl.spec} or
 a partial specialization\iref{temp.spec.partial}.
 A \grammarterm{class-specifier} whose
 \grammarterm{class-head} omits the
-\grammarterm{class-head-name} defines an unnamed class.
+\grammarterm{class-head-name} defines an \defnadj{unnamed}{class}.
 \begin{note}
 An unnamed class thus can't
 be \tcode{final}.
@@ -796,9 +796,10 @@ have layout-compatible types\iref{basic.types},
 \item
 corresponding entities have the same alignment requirements\iref{basic.align},
 \item
-either both entities are declared with
-the \tcode{no_unique_address} attribute\iref{dcl.attr.nouniqueaddr}
-or neither is, and
+if a \grammarterm{has-attribute-expression}\iref{cpp.cond}
+is not \tcode{0} for the \tcode{no_unique_address} attribute,
+then neither entity is declared with
+the \tcode{no_unique_address} attribute\iref{dcl.attr.nouniqueaddr}, and
 \item
 either both entities are bit-fields with the same width
 or neither is a bit-field.
@@ -1095,7 +1096,9 @@ An \defnadj{eligible}{special member function} is a special member function for 
 \begin{itemize}
 \item the function is not deleted,
 \item the associated constraints\iref{temp.constr}, if any, are satisfied, and
-\item no special member function of the same kind is more constrained\iref{temp.constr.order}.
+\item no special member function of the same kind
+whose associated constraints, if any, are satisfied
+is more constrained\iref{temp.constr.order}.
 \end{itemize}
 
 \pnum
@@ -1679,7 +1682,7 @@ More than one form of copy assignment operator can be declared for a class.
 \begin{note}
 If a class
 \tcode{X}
-only has a copy assignment operator with a parameter of type
+only has a copy assignment operator with a non-object parameter of type
 \tcode{X\&},
 an expression of type const
 \tcode{X}
@@ -1719,12 +1722,12 @@ if
 \begin{itemize}
 \item
 each direct base class \tcode{B} of \tcode{X}
-has a copy assignment operator whose parameter is of type
+has a copy assignment operator whose non-object parameter is of type
 \tcode{const B\&}, \tcode{const volatile B\&}, or \tcode{B}, and
 \item
 for all the non-static data members of \tcode{X}
 that are of a class type \tcode{M} (or array thereof),
-each such class type has a copy assignment operator whose parameter is of type
+each such class type has a copy assignment operator whose non-object parameter is of type
 \tcode{const M\&}, \tcode{const volatile M\&},
 or \tcode{M}.
 \begin{footnote}
@@ -1745,11 +1748,6 @@ A user-declared move assignment operator \tcode{X::operator=} is
 a non-static non-template member function of class \tcode{X} with exactly
 one non-object parameter of type \tcode{X\&\&}, \tcode{const X\&\&}, \tcode{volatile X\&\&}, or
 \tcode{const volatile X\&\&}.
-\begin{note}
-An overloaded assignment operator must be
-declared to have only one parameter; see~\ref{over.ass}.
-\end{note}
-{}
 \begin{note}
 More than one form of move assignment operator can be declared for a class.
 \end{note}
@@ -1988,9 +1986,8 @@ of a prospective destructor declaration (if any)
 shall be
 \keyword{friend},
 \keyword{inline},
-\keyword{virtual},
-\keyword{constexpr}, or
-\keyword{consteval}.
+\keyword{virtual}, or
+\keyword{constexpr}.
 
 \pnum
 \indextext{generated destructor|see{destructor, default}}%
@@ -2119,7 +2116,8 @@ destructor for class
 \tcode{X}
 calls the destructors for
 \tcode{X}'s
-direct non-variant non-static data members, the destructors for
+direct non-variant non-static data members other than anonymous unions,
+the destructors for
 \tcode{X}'s
 non-virtual direct base classes and, if
 \tcode{X}
@@ -2193,7 +2191,7 @@ object is available for the
 In an explicit destructor call, the destructor is specified by a
 \tcode{\~{}}
 followed by a
-\grammarterm{type-name} or \grammarterm{decltype-specifier}
+\grammarterm{type-name} or \grammarterm{computed-type-specifier}
 that denotes the destructor's class type.
 The invocation of a destructor is subject to the usual rules for member
 functions\iref{class.mfct};
@@ -2356,7 +2354,7 @@ Such a constructor is called a
 \begin{codeblock}
 struct X {
     X(int);
-    X(const char*, int =0);
+    X(const char*, int = 0);
     X(int, int);
 };
 
@@ -2438,7 +2436,7 @@ its \grammarterm{declarator} shall be
 a function declarator\iref{dcl.fct} of the form
 \begin{ncsimplebnf}
 ptr-declarator \terminal{(} parameter-declaration-clause \terminal{)} \opt{cv-qualifier-seq}\br
-\bnfindent \opt{ref-qualifier-seq} \opt{noexcept-specifier} \opt{attribute-specifier-seq}
+\bnfindent \opt{ref-qualifier} \opt{noexcept-specifier} \opt{attribute-specifier-seq}
 \end{ncsimplebnf}
 where the \grammarterm{ptr-declarator} consists solely of
 an \grammarterm{id-expression},
@@ -2779,9 +2777,8 @@ others.
 \end{note}
 
 \pnum
-\indextext{bit-field!unnamed}%
 A declaration for a bit-field that omits the \grammarterm{identifier}
-declares an \defn{unnamed bit-field}. Unnamed bit-fields are not
+declares an \defnadj{unnamed}{bit-field}. Unnamed bit-fields are not
 members and cannot be initialized.
 An unnamed bit-field shall not be declared with a cv-qualified type.
 \begin{note}
@@ -3161,7 +3158,10 @@ Otherwise, $S(\mathtt{E})$ is empty.
 In an assignment expression of the form \tcode{E1 = E2}
 that uses either the built-in assignment operator\iref{expr.ass}
 or a trivial assignment operator\iref{class.copy.assign},
-for each element \tcode{X} of $S($\tcode{E1}$)$,
+for each element \tcode{X} of $S($\tcode{E1}$)$ and
+each anonymous union member \tcode{X}\iref{class.union.anon} that
+is a member of a union and
+has such an element as an immediate subobject (recursively),
 if modification of \tcode{X} would have undefined behavior under~\ref{basic.life},
 an object of the type of \tcode{X} is implicitly created
 in the nominated storage;
@@ -3257,11 +3257,12 @@ variables, but since they are union members they have the same address.
 \pnum
 \indextext{\idxcode{union}!global anonymous}%
 \indextext{scope!anonymous \tcode{union} at namespace}%
-Anonymous unions declared in the scope of a namespace with external linkage
-shall be declared \keyword{static}. Anonymous unions declared at
-block scope shall be declared with any storage class allowed for a
-block variable, or with no storage class. A storage class is not
-allowed in a declaration of an anonymous union in a class scope.
+An anonymous union declared in the scope of a namespace with external linkage
+shall use the \grammarterm{storage-class-specifier} \keyword{static}.
+Anonymous unions declared at block scope shall not use a \grammarterm{storage-class-specifier}
+that is not permitted in the declaration of a block variable.
+An anonymous union declaration at class scope shall not have
+a \grammarterm{storage-class-specifier}.
 
 \pnum
 \begin{note}
@@ -4855,7 +4856,7 @@ A friend declaration can be the
 a \grammarterm{template-declaration}\iref{temp.pre,temp.friend}.
 \end{note}
 If the
-type specifier in a \keyword{friend} declaration designates a (possibly
+type specifier in a friend declaration designates a (possibly
 cv-qualified) class type, that class is declared as a friend; otherwise, the
 friend declaration is ignored.
 \begin{example}
@@ -5823,9 +5824,16 @@ initialization proceeds as if a defaulted default constructor
 were used to initialize the \tcode{D} object and
 each base class subobject from which the constructor was inherited,
 except that the \tcode{B} subobject is initialized
-by the invocation of the inherited constructor.
+by the inherited constructor
+if the base class subobject were to be initialized
+as part of the \tcode{D} object\iref{class.base.init}.
+The invocation of the inherited constructor,
+including the evaluation of any arguments,
+is omitted if the \tcode{B} subobject is not to be initialized
+as part of the \tcode{D} object.
 The complete initialization is considered to be a single function call;
-in particular, the initialization of the inherited constructor's parameters
+in particular, unless omitted,
+the initialization of the inherited constructor's parameters
 is sequenced before the initialization of any part of the \tcode{D} object.
 \begin{example}
 \begin{codeblock}
@@ -5873,6 +5881,23 @@ template<class T> struct Log : T {
 Class template \tcode{Log} wraps any class and forwards all of its constructors,
 while writing a message to the standard log
 whenever an object of class \tcode{Log} is destroyed.
+\end{example}
+
+\begin{example}
+\begin{codeblock}
+struct V { V() = default; V(int); };
+struct Q { Q(); };
+struct A : virtual V, Q {
+  using V::V;
+  A() = delete;
+};
+int bar() { return 42; }
+struct B : A {
+  B() : A(bar()) {} // OK
+};
+struct C : B {};
+void foo() { C c; } // \tcode{bar} is not invoked, because the \tcode{V} subobject is not initialized as part of \tcode{B}
+\end{codeblock}
 \end{example}
 
 \pnum
@@ -6232,8 +6257,8 @@ can be omitted and references to that copy replaced with references to the
 corresponding parameter if the meaning of the program will be unchanged except for
 the execution of a constructor and destructor for the parameter copy object
 
-\item when the \grammarterm{exception-declaration} of an
-exception handler\iref{except.pre} declares an object of the same
+\item when the \grammarterm{exception-declaration} of a
+\grammarterm{handler}\iref{except.handle} declares an object of the same
 type (except for cv-qualification) as the exception
 object\iref{except.throw}, the copy operation can be omitted by treating
 the \grammarterm{exception-declaration} as an alias for the exception
@@ -6508,7 +6533,7 @@ $\tcode{x}_i\tcode{ == }\tcode{x}_i$
 is usable\iref{class.compare.default}.
 
 \pnum
-The return value \tcode{V} of a defaulted \tcode{==} operator function
+The return value of a defaulted \tcode{==} operator function
 with parameters \tcode{x} and \tcode{y} is determined
 by comparing corresponding elements $\tcode{x}_i$ and $\tcode{y}_i$
 in the expanded lists of subobjects for \tcode{x} and \tcode{y}
@@ -6516,8 +6541,8 @@ in the expanded lists of subobjects for \tcode{x} and \tcode{y}
 until the first index $i$
 where $\tcode{x}_i\tcode{ == }\tcode{y}_i$ yields a result value which,
 when contextually converted to \tcode{bool}, yields \tcode{false}.
-If no such index exists, \tcode{V} is \tcode{true}.
-Otherwise, \tcode{V} is \tcode{false}.
+The return value is \tcode{false} if such an index exists
+and \tcode{true} otherwise.
 
 \pnum
 \begin{example}
@@ -6616,7 +6641,7 @@ the operator function is defined as deleted.
 \end{itemize}
 
 \pnum
-The return value \tcode{V} of type \tcode{R}
+The return value of type \tcode{R}
 of the defaulted three-way comparison operator function
 with parameters \tcode{x} and \tcode{y} of the same type
 is determined by comparing corresponding elements
@@ -6627,10 +6652,10 @@ until the first index $i$ where
 the synthesized three-way comparison of type \tcode{R}
 between $\tcode{x}_i$ and $\tcode{y}_i$
 yields a result value $\tcode{v}_i$ where $\tcode{v}_i \mathrel{\tcode{!=}} 0$,
-contextually converted to \tcode{bool}, yields \tcode{true};
-\tcode{V} is a copy of $\tcode{v}_i$.
-If no such index exists, \tcode{V} is
-\tcode{static_cast<R>(std::strong_ordering::equal)}.
+contextually converted to \tcode{bool}, yields \tcode{true}.
+The return value is a copy of $\tcode{v}_i$
+if such an index exists and
+\tcode{static_cast<R>(std::strong_ordering::equal)} otherwise.
 
 \pnum
 The \defn{common comparison type} \tcode{U}

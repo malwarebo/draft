@@ -489,7 +489,7 @@ is a permissible implementation technique.
 \pnum
 An assignment operator function in a class is odr-used by an
 implicitly-defined
-copy-assignment or move-assignment function for another class as specified
+copy assignment or move assignment function for another class as specified
 in~\ref{class.copy.assign}.
 A constructor for a class is odr-used as specified
 in~\ref{dcl.init}. A destructor for a class is odr-used if it is potentially
@@ -1000,10 +1000,22 @@ struct X {
 \pnum
 A declaration is \defnx{name-independent}{declaration!name-independent}
 if its name is \tcode{_} (\unicode{005f}{low line}) and it declares
+\begin{itemize}
+\item
 a variable with automatic storage duration,
-a structured binding not inhabiting a namespace scope,
+\item
+a structured binding
+%FIXME: "and" is strange below; maybe reword to something like:
+%FIXME: "that has no \grammarterm{storage-class-specifier} and
+%FIXME:  that is not inhabiting a namespace scope,"
+with no \grammarterm{storage-class-specifier} and
+not inhabiting a namespace scope,
+\item
 the variable introduced by an \grammarterm{init-capture}, or
-a non-static data member.
+\item
+%FIXME: "of" is strange below; remove it?
+a non-static data member of other than an anonymous union.
+\end{itemize}
 
 \recommended
 Implementations should not emit a warning
@@ -1206,7 +1218,7 @@ template<class T
 
 \pnum
 The locus of a \grammarterm{concept-definition}
-is immediately after its concept-name\iref{temp.concept}.
+is immediately after its \grammarterm{concept-name}\iref{temp.concept}.
 \begin{note}
 The \grammarterm{constraint-expression} cannot use
 the \grammarterm{concept-name}.
@@ -1278,7 +1290,7 @@ int j = i;          // \tcode{j = 42}
 \pnum
 If a declaration
 that is not a name-independent declaration and
-whose target scope is the block scope $S$ of a
+that binds a name in the block scope $S$ of a
 \begin{itemize}
 \item
 \grammarterm{compound-statement} of a \grammarterm{lambda-expression},
@@ -2170,7 +2182,7 @@ Lookup of an \grammarterm{identifier}
 followed by a \tcode{::} scope resolution operator
 considers only
 namespaces, types, and templates whose specializations are types.
-If a name, \grammarterm{template-id}, or \grammarterm{decltype-specifier}
+If a name, \grammarterm{template-id}, or \grammarterm{computed-type-specifier}
 is followed by a \tcode{::},
 it shall designate a namespace, class, enumeration, or dependent type,
 and the \tcode{::} is never interpreted as
@@ -3301,6 +3313,12 @@ standard-layout type\iref{basic.types.general} shall occupy contiguous bytes of
 storage.
 
 \pnum
+An object is a \defnadj{potentially non-unique}{object} if it is
+a string literal object\iref{lex.string},
+the backing array of an initializer list\iref{dcl.init.ref}, or
+a subobject thereof.
+
+\pnum
 \indextext{most derived object!bit-field}%
 \indextext{most derived object!zero size subobject}%
 Unless an object is a bit-field or a subobject of zero size, the
@@ -3308,11 +3326,13 @@ address of that object is the address of the first byte it occupies.
 Two objects
 with overlapping lifetimes
 that are not bit-fields
-may have the same address
-if one is nested within the other,
+may have the same address if
+\begin{itemize}
+\item one is nested within the other,
+\item at least one is a subobject of zero size and they are not of similar types\iref{conv.qual},
 or
-if at least one is a subobject of zero size
-and they are of different types;
+\item they are both potentially non-unique objects;
+\end{itemize}
 otherwise, they have distinct addresses
 and occupy disjoint bytes of storage.
 \begin{footnote}
@@ -3326,6 +3346,14 @@ difference\iref{intro.execution}.
 static const char test1 = 'x';
 static const char test2 = 'x';
 const bool b = &test1 != &test2;        // always \tcode{true}
+
+static const char (&r) [] = "x";
+static const char *s = "x";
+static std::initializer_list<char> il = { 'x' };
+const bool b2 = r != il.begin();        // unspecified result
+const bool b3 = r != s;                 // unspecified result
+const bool b4 = il.begin() != &test1;   // always \tcode{true}
+const bool b5 = r != &test1;            // always \tcode{true}
 \end{codeblock}
 \end{example}
 The address of a non-bit-field subobject of zero size is
@@ -3338,7 +3366,7 @@ Some operations are described as
 within a specified region of storage.
 For each operation that is specified as implicitly creating objects,
 that operation implicitly creates and starts the lifetime of
-zero or more objects of implicit-lifetime types\iref{basic.types.general}
+zero or more objects of implicit-lifetime types\iref{term.implicit.lifetime.type}
 in its specified region of storage
 if doing so would result in the program having defined behavior.
 If no such set of objects would give the program defined behavior,
@@ -3816,7 +3844,6 @@ causes a system-generated runtime fault.
 \rSec3[basic.stc.static]{Static storage duration}
 
 \pnum
-\indextext{storage duration!static}%
 All variables which
 \begin{itemize}
 \item
@@ -3826,7 +3853,7 @@ belong to a namespace scope\iref{basic.scope.namespace} or
 are first declared with
 the \keyword{static} or \keyword{extern} keywords\iref{dcl.stc}
 \end{itemize}
-have \defn{static storage duration}.
+have \defnadj{static}{storage duration}.
 The storage for these entities lasts for the duration of the
 program\iref{basic.start.static,basic.start.term}.
 
@@ -4728,9 +4755,8 @@ a set of bits in the object representation that determines a
 \defn{value}, which is one discrete element of an
 \impldef{values of a trivially copyable type} set of values.
 \begin{footnote}
-The
-intent is that the memory model of \Cpp{} is compatible
-with that of ISO/IEC 9899 Programming Language C.
+The intent is that the memory model of \Cpp{} is compatible
+with that of the C programming language.
 \end{footnote}
 
 \pnum
@@ -4835,6 +4861,7 @@ Scalar types, standard-layout class
 types\iref{class.prop}, arrays of such types, and
 cv-qualified versions of these types
 are collectively called \defnadjx{standard-layout}{types}{type}.
+\label{term.implicit.lifetime.type}%
 Scalar types, implicit-lifetime class types\iref{class.prop},
 array types, and cv-qualified versions of these types
 are collectively called \defnadjx{implicit-lifetime}{types}{type}.
@@ -5249,8 +5276,8 @@ the floating-point literal suffixes \tcode{bf16} and \tcode{BF16} are supported.
 \pnum
 \begin{note}
 A summary of the parameters for each type is given in \tref{basic.extended.fp}.
-The precision $p$ includes the implicit 1 bit at the beginning of the mantissa,
-so the storage used for the mantissa is $p-1$ bits.
+The precision $p$ includes the implicit 1 bit at the beginning of the significand,
+so the storage used for the significand is $p-1$ bits.
 ISO/IEC/IEEE 60559 does not assign a name for a type
 having the parameters specified for \tcode{std::bfloat16_t}.
 \end{note}
@@ -5276,7 +5303,7 @@ that are in addition to the names defined in the \libheader{stdfloat} header
 should be chosen to increase compatibility and interoperability
 with the interchange types
 \tcode{_Float16}, \tcode{_Float32}, \tcode{_Float64}, and \tcode{_Float128}
-defined in ISO/IEC TS 18661-3 and with future versions of the C standard.
+defined in ISO/IEC TS 18661-3 and with future versions of \IsoCUndated{}.
 
 \rSec2[basic.compound]{Compound types}
 
@@ -6252,7 +6279,7 @@ happens before $X$ and $X$ happens before $B$.
 \end{itemize}
 
 The value of a non-atomic scalar object or bit-field $M$, as determined by
-evaluation $B$, shall be the value stored by the
+evaluation $B$, is the value stored by the
 \indextext{side effects!visible}%
 visible side effect $A$.
 \begin{note}
@@ -6270,8 +6297,8 @@ races in a simple interleaved (sequentially consistent) execution.
 
 \pnum
 The value of an
-atomic object $M$, as determined by evaluation $B$, shall be the value
-stored by some
+atomic object $M$, as determined by evaluation $B$, is the value
+stored by some unspecified
 side effect $A$ that modifies $M$, where $B$ does not happen
 before $A$.
 \begin{note}
@@ -6282,7 +6309,7 @@ described here, and in particular, by the coherence requirements below.
 \pnum
 \indextext{coherence!write-write}%
 If an operation $A$ that modifies an atomic object $M$ happens before
-an operation $B$ that modifies $M$, then $A$ shall be earlier
+an operation $B$ that modifies $M$, then $A$ is earlier
 than $B$ in the modification order of $M$.
 \begin{note}
 This requirement is known as write-write coherence.
@@ -6294,7 +6321,7 @@ If a
 \indextext{value computation}%
 value computation $A$ of an atomic object $M$ happens before a
 value computation $B$ of $M$, and $A$ takes its value from a side
-effect $X$ on $M$, then the value computed by $B$ shall either be
+effect $X$ on $M$, then the value computed by $B$ is either
 the value stored by $X$ or the value stored by a
 \indextext{side effects}%
 side effect $Y$ on $M$,
@@ -6308,7 +6335,7 @@ This requirement is known as read-read coherence.
 If a
 \indextext{value computation}%
 value computation $A$ of an atomic object $M$ happens before an
-operation $B$ that modifies $M$, then $A$ shall take its value from a side
+operation $B$ that modifies $M$, then $A$ takes its value from a side
 effect $X$ on $M$, where $X$ precedes $B$ in the
 modification order of $M$.
 \begin{note}
@@ -6321,7 +6348,7 @@ read-write coherence.
 If a
 \indextext{side effects}%
 side effect $X$ on an atomic object $M$ happens before a value
-computation $B$ of $M$, then the evaluation $B$ shall take its
+computation $B$ of $M$, then the evaluation $B$ takes its
 value from $X$ or from a
 \indextext{side effects}%
 side effect $Y$ that follows $X$ in the modification order of $M$.

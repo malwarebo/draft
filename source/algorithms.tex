@@ -297,7 +297,7 @@ Parallel algorithms access objects indirectly accessible via their arguments
 by invoking the following functions:
 \begin{itemize}
 \item
-  All operations of the categories of the iterators
+  All operations of the categories of the iterators or \tcode{mdspan} types
   that the algorithm is instantiated with.
 \item
   Operations on those sequence elements that are required by its specification.
@@ -348,7 +348,7 @@ void f() {
   int a[] = {1,2};
   std::for_each(std::execution::par_unseq, std::begin(a), std::end(a), [&](int) {
     std::lock_guard<mutex> guard(m);            // incorrect: \tcode{lock_guard} constructor calls \tcode{m.lock()}
-  ++x;
+    ++x;
   });
 }
 \end{codeblock}
@@ -369,7 +369,8 @@ function objects passed into parallel algorithms as objects of type
 \tcode{UnaryOperation},
 \tcode{BinaryOperation},
 \tcode{BinaryOperation1},
-\tcode{BinaryOperation2}, and
+\tcode{BinaryOperation2},
+\tcode{BinaryDivideOp}, and
 the operators used by the analogous overloads to these parallel algorithms
 that are formed by an invocation
 with the specified default predicate or operation (where applicable)
@@ -977,7 +978,7 @@ namespace std {
         count_if(R&& r, Pred pred, Proj proj = {});
   }
 
-  // \ref{mismatch}, mismatch
+  // \ref{alg.mismatch}, mismatch
   template<class InputIterator1, class InputIterator2>
     constexpr pair<InputIterator1, InputIterator2>
       mismatch(InputIterator1 first1, InputIterator1 last1,
@@ -1630,7 +1631,7 @@ namespace std {
     void fill(ExecutionPolicy&& exec,                           // see \ref{algorithms.parallel.overloads}
               ForwardIterator first, ForwardIterator last, const T& value);
   template<class OutputIterator, class Size, class T>
-    constexpr OutputIterator fill_n(OutputIterator first, Size n, const T& value);
+    constexpr OutputIterator fill_n(OutputIterator first, Size n, const T& value);  // freestanding
   template<class ExecutionPolicy, class ForwardIterator,
            class Size, class T>
     ForwardIterator fill_n(ExecutionPolicy&& exec,              // see \ref{algorithms.parallel.overloads}
@@ -4044,7 +4045,7 @@ Exactly \tcode{last - first} applications
 of the corresponding predicate and any projection.
 \end{itemdescr}
 
-\rSec2[mismatch]{Mismatch}
+\rSec2[alg.mismatch]{Mismatch}
 
 \indexlibraryglobal{mismatch}%
 \begin{itemdecl}
@@ -5207,7 +5208,7 @@ Exactly $N$ assignments.
 template<class ForwardIterator1, class ForwardIterator2>
   constexpr ForwardIterator2
     swap_ranges(ForwardIterator1 first1, ForwardIterator1 last1,
-                ForwardIterator2 first2);
+                ForwardIterator2 first2);                               // freestanding
 template<class ExecutionPolicy, class ForwardIterator1, class ForwardIterator2>
   ForwardIterator2
     swap_ranges(ExecutionPolicy&& exec,
@@ -9621,6 +9622,18 @@ namespace std {
     constexpr T midpoint(T a, T b) noexcept;
   template<class T>
     constexpr T* midpoint(T* a, T* b);
+
+  // \ref{numeric.sat}, saturation arithmetic
+  template<class T>
+    constexpr T add_sat(T x, T y) noexcept;                     // freestanding
+  template<class T>
+    constexpr T sub_sat(T x, T y) noexcept;                     // freestanding
+  template<class T>
+    constexpr T mul_sat(T x, T y) noexcept;                     // freestanding
+  template<class T>
+    constexpr T div_sat(T x, T y) noexcept;                     // freestanding
+  template<class T, class U>
+    constexpr T saturate_cast(U x) noexcept;                    // freestanding
 }
 \end{codeblock}
 
@@ -10753,6 +10766,119 @@ to a hypothetical array element $n$ for this purpose.
 \returns
 A pointer to array element $i+\frac{j-i}{2}$ of \tcode{x},
 where the result of the division is truncated towards zero.
+\end{itemdescr}
+
+\rSec2[numeric.sat]{Saturation arithmetic}
+
+\rSec3[numeric.sat.func]{Arithmetic functions}
+
+\pnum
+\begin{note}
+In the following descriptions, an arithmetic operation
+is performed as a mathematical operation with infinite range and then
+it is determined whether the mathematical result fits into the result type.
+\end{note}
+
+\indexlibraryglobal{add_sat}%
+\begin{itemdecl}
+template<class T>
+  constexpr T add_sat(T x, T y) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{T} is a signed or unsigned integer type\iref{basic.fundamental}.
+
+\pnum
+\returns
+If $\tcode{x} + \tcode{y}$ is representable as a value of type \tcode{T}, $\tcode{x} + \tcode{y}$;
+otherwise, either the largest or smallest representable value of type \tcode{T},
+whichever is closer to the value of $\tcode{x} + \tcode{y}$.
+\end{itemdescr}
+
+\indexlibraryglobal{sub_sat}%
+\begin{itemdecl}
+template<class T>
+  constexpr T sub_sat(T x, T y) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{T} is a signed or unsigned integer type\iref{basic.fundamental}.
+
+\pnum
+\returns
+If $\tcode{x} - \tcode{y}$ is representable as a value of type \tcode{T}, $\tcode{x} - \tcode{y}$;
+otherwise, either the largest or smallest representable value of type \tcode{T},
+whichever is closer to the value of $\tcode{x} - \tcode{y}$.
+\end{itemdescr}
+
+\indexlibraryglobal{mul_sat}%
+\begin{itemdecl}
+template<class T>
+  constexpr T mul_sat(T x, T y) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{T} is a signed or unsigned integer type\iref{basic.fundamental}.
+
+\pnum
+\returns
+If $\tcode{x} \times \tcode{y}$ is representable as a value of type \tcode{T}, $\tcode{x} \times \tcode{y}$;
+otherwise, either the largest or smallest representable value of type \tcode{T},
+whichever is closer to the value of $\tcode{x} \times \tcode{y}$.
+\end{itemdescr}
+
+\indexlibraryglobal{div_sat}%
+\begin{itemdecl}
+template<class T>
+  constexpr T div_sat(T x, T y) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{T} is a signed or unsigned integer type\iref{basic.fundamental}.
+
+\pnum
+\expects
+\tcode{y != 0} is \tcode{true}.
+
+\pnum
+\returns
+If \tcode{T} is a signed integer type
+and \tcode{x == numeric_limits<T>::min() \&\& y == -1} is \tcode{true},
+\tcode{numeric_limits<T>::max()}, otherwise, \tcode{x / y}.
+
+\pnum
+\remarks
+A function call expression
+that violates the precondition in the \Fundescx{Preconditions} element
+is not a core constant expression\iref{expr.const}.
+\end{itemdescr}
+
+\rSec3[numeric.sat.cast]{Casting}
+
+\indexlibraryglobal{saturate_cast}%
+\begin{itemdecl}
+template<class R, class T>
+  constexpr R saturate_cast(T x) noexcept;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{R} and \tcode{T} are signed or unsigned integer types\iref{basic.fundamental}.
+
+\pnum
+\returns
+If \tcode{x} is representable as a value of type \tcode{R}, \tcode{x};
+otherwise, either the largest or smallest representable value of type \tcode{R},
+whichever is closer to the value of \tcode{x}.
 \end{itemdescr}
 
 \rSec1[specialized.algorithms]{Specialized \tcode{<memory>} algorithms}

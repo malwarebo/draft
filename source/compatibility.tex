@@ -13,6 +13,27 @@ by the chapters of this document.
 
 \rSec2[diff.cpp23.expr]{\ref{expr}: expressions}
 
+\diffref{expr.arith.conv}
+\change
+Operations mixing a value of an enumeration type and a value of a different
+enumeration type or of a floating-point type are no longer valid.
+\rationale
+Reinforcing type safety.
+\effect
+A valid \CppXXIII{} program that performs operations mixing a value of an
+enumeration type and a value of a different enumeration type or of a
+floating-point type is ill-formed.
+For example:
+\begin{codeblock}
+enum E1 { e };
+enum E2 { f };
+bool b = e <= 3.7;      // ill-formed; previously well-formed
+int  k = f - e;         // ill-formed; previously well-formed
+auto x = true ? e : f;  // ill-formed; previously well-formed
+\end{codeblock}
+
+\rSec2[diff.cpp23.dcl.dcl]{\ref{dcl.dcl}: Declarations}
+
 \diffref{dcl.init.list}
 \change
 Pointer comparisons between \tcode{initializer_list} objects' backing arrays
@@ -31,6 +52,44 @@ bool ne(std::initializer_list<int> a, std::initializer_list<int> b) {
 bool b = ne({2,3}, {1,2,3});    // unspecified result; previously \tcode{false}
 \end{codeblock}
 
+\diffref{dcl.array}
+\change
+Previously, \tcode{T...[n]} would declare a pack of function parameters.
+\tcode{T...[n]} is now a \grammarterm{pack-index-specifier}.
+\rationale
+Improve the handling of packs.
+\effect
+Valid \CppXXIII{} code that declares a pack of parameters
+without specifying a \grammarterm{declarator-id} becomes ill-formed.
+For example:
+\begin{codeblock}
+template <typename... T>
+void f(T... [1]);
+template <typename... T>
+void g(T... ptr[1]);
+int main() {
+  f<int, double>(nullptr, nullptr);     // ill-formed, previously \tcode{void f<int, double>(int [1], double [1])}
+  g<int, double>(nullptr, nullptr);     // ok
+}
+\end{codeblock}
+
+\rSec2[diff.cpp23.library]{\ref{library}: library introduction}
+
+\diffref{headers}
+\change
+New headers.
+\rationale
+New functionality.
+\effect
+The following \Cpp{} headers are new:
+\libheaderref{debugging},
+\libheaderrefx{hazard_pointer}{hazard.pointer.syn},
+\libheaderref{linalg},
+\libheaderref{rcu}, and
+\libheaderrefx{text_encoding}{text.encoding.syn}.
+Valid \CppXXIII{} code that \tcode{\#include}{s} headers with these names may be
+invalid in this revision of \Cpp{}.
+
 \rSec2[diff.cpp23.strings]{\ref{strings}: strings library}
 
 \diffref{string.conversions}
@@ -48,6 +107,88 @@ auto s = std::to_string(1e-7);  // \tcode{"1e-07"}
                                 // previously \tcode{"0.000000"} with \tcode{'.'} possibly
                                 // changed according to the global C locale
 \end{codeblock}
+
+\rSec2[diff.cpp23.containers]{\ref{containers}: containers library}
+
+\diffref{span.overview}
+\change
+\tcode{span<const T>} is constructible from \tcode{initializer_list<T>}.
+\rationale
+Permit passing a braced initializer list to a function taking \tcode{span}.
+\effect
+Valid \CppXXIII{} code that relies on the lack of this constructor
+may refuse to compile, or change behavior in this revision of \Cpp{}.
+For example:
+\begin{codeblock}
+void one(pair<int, int>);       // \#1
+void one(span<const int>);      // \#2
+void t1() { one({1, 2}); }      // ambiguous between \#1 and \#2; previously called \#1
+
+void two(span<const int, 2>);
+void t2() { two({{1, 2}}); }    // ill-formed; previously well-formed
+
+void *a[10];
+int x = span<void* const>{a, 0}.size();     // \tcode{x} is \tcode{2}; previously \tcode{0}
+any b[10];
+int y = span<const any>{b, b + 10}.size();  // \tcode{y} is \tcode{2}; previously \tcode{10}
+\end{codeblock}
+
+\rSec2[diff.cpp23.depr]{\ref{depr}: compatibility features}
+
+\nodiffref
+\change
+Remove the type alias \tcode{allocator<T>::is_always_equal}.
+\rationale
+Non-empty allocator classes derived from \tcode{allocator} needed to explicitly
+define an \tcode{is_always_equal} member type so that \tcode{allocator_traits}
+would not use the one from the allocator base class.
+\effect
+It is simpler to correctly define an allocator class with an allocator base
+class. For example:
+\begin{codeblock}
+template <class T>
+struct MyAlloc : allocator<T> {
+  int tag;
+};
+
+static_assert(!allocator_traits<MyAlloc<int>>::is_always_equal);        // Error in \CppXXIII{},
+                                                                        // OK in \CppXXVI{}
+\end{codeblock}
+
+\nodiffref
+\change
+Remove the \tcode{basic_string::reserve()} overload with no parameters.
+\rationale
+The overload of \tcode{reserve} with no parameters is redundant.
+The \tcode{shrink_to_fit} member function can be used instead.
+\effect
+A valid \CppXXIII{} program that calls \tcode{reserve()}
+on a \tcode{basic_string} object may fail to compile.
+The old functionality can be achieved by calling \tcode{shrink_to_fit()} instead,
+or the function call can be safely eliminated with no side effects.
+
+\nodiffref
+\change
+Remove header \libnoheader{codecvt} and all its contents.
+\rationale
+The header has been deprecated for the previous three editions of this standard
+and no longer implements the current Unicode standard, supporting only the
+obsolete UCS-2 encoding.
+Ongoing support is at implementer's discretion,
+exercising freedoms granted by \ref{zombie.names}.
+\effect
+A valid \CppXXIII{} program \tcode{\#include}-ing the header or importing the
+header unit may fail to compile. Code that uses any of the following names by
+importing the standard library modules may fail to compile:
+\begin{itemize}
+\item \tcode{codecvt_mode},
+\item \tcode{codecvt_utf16},
+\item \tcode{codecvt_utf8},
+\item \tcode{codecvt_utf8_utf16},
+\item \tcode{consume_header},
+\item \tcode{generate_header}, and
+\item \tcode{little_endian}.
+\end{itemize}
 
 \rSec1[diff.cpp20]{\Cpp{} and ISO \CppXX{}}
 
@@ -202,10 +343,12 @@ The following \Cpp{} headers are new:
 \libheaderrefx{flat_map}{flat.map.syn},
 \libheaderrefx{flat_set}{flat.set.syn},
 \libheaderref{generator},
+\libheaderref{mdspan},
 \libheaderref{print},
 \libheaderref{spanstream},
-\libheaderref{stacktrace}, and
-\libheaderref{stdatomic.h}.
+\libheaderref{stacktrace},
+\libheaderref{stdatomic.h}, and
+\libheaderref{stdfloat}.
 Valid \CppXX{} code that \tcode{\#include}{s} headers with these names may be
 invalid in this revision of \Cpp{}.
 
@@ -1809,6 +1952,27 @@ This code is valid in \CppIII{} but invalid in this
 revision of \Cpp{} because \tcode{double} to \tcode{int} is a narrowing
 conversion.
 
+\diffref{dcl.link}
+\change
+Names declared in an anonymous namespace
+changed from external linkage to internal linkage;
+language linkage applies to names with external linkage only.
+\rationale
+Alignment with user expectations.
+\effect
+Valid \CppIII{} code may violate the one-definition rule\iref{basic.def.odr}
+in this revision of \Cpp{}.
+For example:
+\begin{codeblock}
+namespace { extern "C" { extern int x; } }  // \#1, previously external linkage and C language linkage,
+                                            // now internal linkage and \Cpp{} language linkage
+namespace A { extern "C" int x = 42; }      // \#2, external linkage and C language linkage
+int main(void) { return x; }
+\end{codeblock}
+This code is valid in \CppIII{},
+but \tcode{\#2} is not a definition for \tcode{\#1}
+in this revision of \Cpp{}, violating the one-definition rule.
+
 \rSec2[diff.cpp03.class]{\ref{class}: classes}
 
 \diffref{class.default.ctor,class.dtor,class.copy.ctor,class.copy.assign}
@@ -1899,11 +2063,10 @@ The following \Cpp{} headers are new:
 \libheaderref{array},
 \libheaderrefx{atomic}{atomics.syn},
 \libheaderrefx{chrono}{time.syn},
-\libdeprheaderref{codecvt},
 \libheaderrefx{condition_variable}{condition.variable.syn},
 \libheaderrefx{forward_list}{forward.list.syn},
 \libheaderref{future},
-\libheaderrefx{initializer_list}{initializer.list.syn},
+\libheaderrefx{initiali\-zer_list}{initializer.list.syn},
 \libheaderref{mutex},
 \libheaderrefx{random}{rand.synopsis},
 \libheaderref{ratio},
@@ -2461,6 +2624,35 @@ programming practice to add the cast when assigning pointer-to-void to pointer-t
 Some ISO C translators will give a warning
 if the cast is not used.
 
+\diffref{expr.arith.conv}
+\change
+Operations mixing a value of an enumeration type and a value of a different
+enumeration type or of a floating-point type are not valid.
+For example:
+\begin{codeblock}
+enum E1 { e };
+enum E2 { f };
+int b = e <= 3.7;       // valid in C; ill-formed in \Cpp{}
+int k = f - e;          // valid in C; ill-formed in \Cpp{}
+int x = 1 ? e : f;      // valid in C; ill-formed in \Cpp{}
+\end{codeblock}
+\rationale
+Reinforcing type safety in \Cpp{}.
+\effect
+Well-formed C code will not compile with this International Standard.
+\difficulty
+Violations will be diagnosed by the \Cpp{} translator.
+The original behavior can be restored with a cast or integral promotion.
+For example:
+\begin{codeblock}
+enum E1 { e };
+enum E2 { f };
+int b = (int)e <= 3.7;
+int k = +f - e;
+\end{codeblock}
+\howwide
+Uncommon.
+
 \diffref{expr.post.incr,expr.pre.incr}
 \change
 Decrement operator is not allowed with \keyword{bool} operand.
@@ -2768,7 +2960,7 @@ struct A c = {.x = 1, 2};       // valid C, invalid \Cpp{}
 \rationale
 In \Cpp{}, members are destroyed in reverse construction order
 and the elements of an initializer list are evaluated in lexical order,
-so field initializers must be specified in order.
+so member initializers must be specified in order.
 Array designators conflict with \grammarterm{lambda-expression} syntax.
 Nested designators are seldom used.
 \effect

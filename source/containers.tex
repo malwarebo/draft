@@ -856,6 +856,26 @@ meet the constexpr iterator requirements\iref{iterator.requirements.general}
 then the operations described below
 are implemented by constexpr functions.
 
+% Local command to index a name as a member of all containers.
+\renewcommand{\indexcont}[1]{%
+\indexlibrarymisc{\idxcode{#1}}{optional container requirements}%
+\indexlibrarymemberx{array}{#1}%
+\indexlibrarymemberx{deque}{#1}%
+\indexlibrarymemberx{forward_list}{#1}%
+\indexlibrarymemberx{list}{#1}%
+\indexlibrarymemberx{vector}{#1}%
+\indexlibrarymemberx{map}{#1}%
+\indexlibrarymemberx{set}{#1}%
+\indexlibrarymemberx{multiset}{#1}%
+\indexlibrarymemberx{multimap}{#1}%
+\indexlibrarymemberx{flat_map}{#1}%
+\indexlibrarymemberx{flat_set}{#1}%
+\indexlibrarymemberx{flat_multiset}{#1}%
+\indexlibrarymemberx{flat_multimap}{#1}%
+\indexlibrarymemberx{basic_string}{#1}%
+}
+
+\indexcont{operator<=>}%
 \begin{itemdecl}
 a <=> b
 \end{itemdecl}
@@ -867,7 +887,7 @@ a <=> b
 
 \pnum
 \expects
-Either \tcode{<=>} is defined for values of type (possibly const) \tcode{T},
+Either \tcode{T} models \libconcept{three_way_comparable},
 or \tcode{<} is defined for values of type (possibly const) \tcode{T} and
 \tcode{<} is a total ordering relationship.
 
@@ -888,7 +908,8 @@ Linear.
 \rSec3[container.alloc.reqmts]{Allocator-aware containers}
 
 \pnum
-All of the containers defined in \ref{containers} and in~\ref{basic.string} except \tcode{array}
+Except for \tcode{array}, all of the containers defined in \ref{containers},
+\ref{stacktrace.basic}, \ref{basic.string}, and \ref{re.results}
 meet the additional requirements of an \defnadj{allocator-aware}{container},
 as described below.
 
@@ -898,7 +919,9 @@ and given a container type \tcode{X} having a \tcode{value_type} identical to \t
 and an \tcode{allocator_type} identical to \tcode{allocator_traits<A>::rebind_alloc<T>}
 and given an lvalue \tcode{m} of type \tcode{A},
 a pointer \tcode{p} of type \tcode{T*},
-an expression \tcode{v} of type \tcode{T} or \tcode{const T},
+an expression \tcode{v} that denotes
+an lvalue of type \tcode{T} or \tcode{const T} or
+an rvalue of type \tcode{const T},
 and an rvalue \tcode{rv} of type \tcode{T},
 the following terms are defined. If \tcode{X}
 is not allocator-aware or is a specialization of \tcode{basic_string},
@@ -1252,24 +1275,6 @@ such as \tcode{stack}s,
 \tcode{flat_set}s, or
 \tcode{flat_multiset}s, out of
 the basic sequence container kinds (or out of other program-defined sequence containers).
-
-\pnum
-\begin{note}
-The sequence containers
-offer the programmer different complexity trade-offs.
-\tcode{vector}
-is appropriate in most circumstances.
-\tcode{array}
-has a fixed size known during translation.
-\tcode{list} or \tcode{forward_list}
-support frequent insertions and deletions from the
-middle of the sequence.
-\tcode{deque}
-supports efficient insertions and deletions taking place at the beginning or at the
-end of the sequence.
-When choosing a container, remember \tcode{vector} is best;
-leave a comment to explain if you choose from the rest!
-\end{note}
 
 \pnum
 In this subclause,
@@ -5970,12 +5975,13 @@ template<class InputIterator>
 
 \indexheader{array}%
 \begin{codeblock}
+// mostly freestanding
 #include <compare>              // see \ref{compare.syn}
 #include <initializer_list>     // see \ref{initializer.list.syn}
 
 namespace std {
   // \ref{array}, class template \tcode{array}
-  template<class T, size_t N> struct array;
+  template<class T, size_t N> struct array;                             // partially freestanding
 
   template<class T, size_t N>
     constexpr bool operator==(const array<T, N>& x, const array<T, N>& y);
@@ -6206,7 +6212,7 @@ one of these tables and
 for operations where there is additional semantic information.
 
 \pnum
-\tcode{array<T, N>} is a structural type\iref{temp.param} if
+\tcode{array<T, N>} is a structural type\iref{term.structural.type} if
 \tcode{T} is a structural type.
 Two values \tcode{a1} and \tcode{a2} of type \tcode{array<T, N>}
 are template-argument-equivalent\iref{temp.type} if and only if
@@ -6268,8 +6274,8 @@ namespace std {
     // element access
     constexpr reference       operator[](size_type n);
     constexpr const_reference operator[](size_type n) const;
-    constexpr reference       at(size_type n);
-    constexpr const_reference at(size_type n) const;
+    constexpr reference       at(size_type n);                          // freestanding-deleted
+    constexpr const_reference at(size_type n) const;                    // freestanding-deleted
     constexpr reference       front();
     constexpr const_reference front() const;
     constexpr reference       back();
@@ -13682,6 +13688,10 @@ namespace std {
   template<class T, class Container, class Alloc>
     struct uses_allocator<queue<T, Container>, Alloc>;
 
+  // \ref{container.adaptors.format}, formatter specialization for \tcode{queue}
+  template<class charT, class T, @\libconcept{formattable}@<charT> Container>
+    struct formatter<queue<T, Container>, charT>;
+
   // \ref{priority.queue}, class template \tcode{priority_queue}
   template<class T, class Container = vector<T>,
            class Compare = less<typename Container::value_type>>
@@ -13692,6 +13702,10 @@ namespace std {
               priority_queue<T, Container, Compare>& y) noexcept(noexcept(x.swap(y)));
   template<class T, class Container, class Compare, class Alloc>
     struct uses_allocator<priority_queue<T, Container, Compare>, Alloc>;
+
+  // \ref{container.adaptors.format}, formatter specialization for \tcode{priority_queue}
+  template<class charT, class T, @\libconcept{formattable}@<charT> Container, class Compare>
+    struct formatter<priority_queue<T, Container, Compare>, charT>;
 }
 \end{codeblock}
 
@@ -13726,6 +13740,10 @@ namespace std {
     void swap(stack<T, Container>& x, stack<T, Container>& y) noexcept(noexcept(x.swap(y)));
   template<class T, class Container, class Alloc>
     struct uses_allocator<stack<T, Container>, Alloc>;
+
+  // \ref{container.adaptors.format}, formatter specialization for \tcode{stack}
+  template<class charT, class T, @\libconcept{formattable}@<charT> Container>
+    struct formatter<stack<T, Container>, charT>;
 }
 \end{codeblock}
 
@@ -18203,13 +18221,16 @@ other facilities for interacting with these multidimensional views.
 
 \indexheader{span}%
 \begin{codeblock}
+#include <initializer_list>     // see \ref{initializer.list.syn}
+
+// mostly freestanding
 namespace std {
   // constants
   inline constexpr size_t @\libglobal{dynamic_extent}@ = numeric_limits<size_t>::max();
 
   // \ref{views.span}, class template \tcode{span}
   template<class ElementType, size_t Extent = dynamic_extent>
-    class span;
+    class span;                                                             // partially freestanding
 
   template<class ElementType, size_t Extent>
     constexpr bool ranges::@\libspec{enable_view}{span}@<span<ElementType, Extent>> = true;
@@ -18274,6 +18295,7 @@ namespace std {
       constexpr span(const array<T, N>& arr) noexcept;
     template<class R>
       constexpr explicit(extent != dynamic_extent) span(R&& r);
+    constexpr explicit(extent != dynamic_extent) span(std::initializer_list<value_type> il);
     constexpr span(const span& other) noexcept = default;
     template<class OtherElementType, size_t OtherExtent>
       constexpr explicit(@\seebelow@) span(const span<OtherElementType, OtherExtent>& s) noexcept;
@@ -18300,6 +18322,7 @@ namespace std {
 
     // \ref{span.elem}, element access
     constexpr reference operator[](size_type idx) const;
+    constexpr reference at(size_type idx) const;                            // freestanding-deleted
     constexpr reference front() const;
     constexpr reference back() const;
     constexpr pointer data() const noexcept;
@@ -18339,6 +18362,12 @@ a trivially copyable type\iref{term.trivially.copyable.type}.
 \pnum
 \tcode{ElementType} is required to be
 a complete object type that is not an abstract class type.
+
+\pnum
+For a \tcode{span} \tcode{s},
+any operation that invalidates a pointer in
+the range \range{s.data()}{s.data() + s.size()}
+invalidates pointers, iterators, and references to elements of \tcode{s}.
 
 \rSec4[span.cons]{Constructors, copy, and assignment}
 
@@ -18450,7 +18479,7 @@ template<class T, size_t N> constexpr span(const array<T, N>& arr) noexcept;
 \begin{itemdescr}
 \pnum
 \constraints
-Let \tcode{U} be \tcode{remove_pointer_t<decltype(data(arr))>}.
+Let \tcode{U} be \tcode{remove_pointer_t<decltype(std::data(arr))>}.
 \begin{itemize}
 \item \tcode{extent == dynamic_extent || N == extent} is \tcode{true}, and
 \item \tcode{is_convertible_v<U(*)[], element_type(*)[]>} is \tcode{true}.
@@ -18469,7 +18498,7 @@ Constructs a \tcode{span} that is a view over the supplied array.
 
 \pnum
 \ensures
-\tcode{size() == N \&\& data() == data(arr)} is \tcode{true}.
+\tcode{size() == N \&\& data() == std::data(arr)} is \tcode{true}.
 \end{itemdescr}
 
 \indexlibraryctor{span}%
@@ -18516,6 +18545,27 @@ Initializes \exposid{data_} with \tcode{ranges::data(r)} and
 \pnum
 \throws
 What and when \tcode{ranges::data(r)} and \tcode{ranges::size(r)} throw.
+\end{itemdescr}
+
+\indexlibraryctor{span}%
+\begin{itemdecl}
+constexpr explicit(extent != dynamic_extent) span(std::initializer_list<value_type> il);
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\constraints
+\tcode{is_const_v<element_type>} is \tcode{true}.
+
+\pnum
+\expects
+If \tcode{extent} is not equal to \tcode{dynamic_extent}, then
+\tcode{il.size()} is equal to \tcode{extent}.
+
+\pnum
+\effects
+Initializes \exposid{data_} with \tcode{il.begin()} and
+\exposid{size_} with \tcode{il.size()}.
 \end{itemdescr}
 
 \indexlibraryctor{span}%
@@ -18791,6 +18841,21 @@ constexpr reference operator[](size_type idx) const;
 Equivalent to: \tcode{return *(data() + idx);}
 \end{itemdescr}
 
+\indexlibrarymember{span}{at}%
+\begin{itemdecl}
+constexpr reference at(size_type idx) const;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{*(data() + idx)}.
+
+\pnum
+\throws
+\tcode{out_of_range} if \tcode{idx >= size()} is \tcode{true}.
+\end{itemdescr}
+
 \indexlibrarymember{span}{front}%
 \begin{itemdecl}
 constexpr reference front() const;
@@ -18973,6 +19038,7 @@ in the interval $[L_i, U_i)$ of $S$.
 
 \indexheader{mdspan}%
 \begin{codeblock}
+// all freestanding
 namespace std {
   // \ref{mdspan.extents}, class template \tcode{extents}
   template<class IndexType, size_t... Extents>
@@ -19002,6 +19068,9 @@ namespace std {
 
   template<class LayoutMapping>
     struct submdspan_mapping_result;
+
+  struct full_extent_t { explicit full_extent_t() = default; };
+  inline constexpr full_extent_t full_extent{};
 
   template<class IndexType, class... Extents, class... SliceSpecifiers>
     constexpr auto submdspan_extents(const extents<IndexType, Extents...>&, SliceSpecifiers...);
@@ -21447,7 +21516,7 @@ is_same_v<make_index_sequence<rank()>, index_sequence<P...>>
 is \tcode{true}.
 Equivalent to:
 \begin{codeblock}
-return operator[](as_const(indices[P])...);
+return operator[](extents_type::@\exposid{index-cast}@(as_const(indices[P]))...);
 \end{codeblock}
 \end{itemdescr}
 

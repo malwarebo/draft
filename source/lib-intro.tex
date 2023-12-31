@@ -46,6 +46,10 @@ Detailed specifications for each of the components in the library are in
 \end{floattable}
 
 \pnum
+The operating system interface described in ISO/IEC/IEEE 9945:2009 is
+hereinafter called \defn{POSIX}.
+
+\pnum
 The language support library\iref{support} provides components that are
 required by certain parts of the \Cpp{} language,
 such as memory allocation\iref{expr.new,expr.delete} and
@@ -150,9 +154,9 @@ a non-constant library call\iref{defns.nonconst.libcall}
 if it raises a floating-point exception other than \tcode{FE_INEXACT}.
 The semantics of a call to a C standard library function
 evaluated as a core constant expression
-are those specified in Annex F of the C standard
+are those specified in \IsoC{}, Annex F
 \begin{footnote}
-See also ISO/IEC 9899:2018 section 7.6.
+See also \IsoC{}, 7.6.
 \end{footnote}
 to the extent applicable to the floating-point types\iref{basic.fundamental}
 that are parameter types of the called function.
@@ -897,29 +901,62 @@ a freestanding implementation and a hosted implementation.
 Unless otherwise specified,
 the requirements on freestanding items for a freestanding implementation
 are the same as the corresponding requirements for a hosted implementation,
-except that not all of the members of the namespaces are required to be present.
+except that not all of the members of those items are required to be present.
+
+\pnum
+Function declarations and function template declarations
+followed by a comment that include \textit{freestanding-deleted} are
+\defnadjx{freestanding deleted}{functions}{function}.
+On freestanding implementations,
+it is \impldef{whether a freestanding deleted function is a deleted function}
+whether each entity introduced by a freestanding deleted function
+is a deleted function\iref{dcl.fct.def.delete} or
+whether the requirements are the same as
+the corresponding requirements for a hosted implementation.
 \begin{note}
-This implies that freestanding item enumerations have the same enumerators on
-freestanding implementations and hosted implementations.
-Furthermore, class types have the same members and
-class templates have the same deduction guides
-on freestanding implementations and hosted implementations.
+Deleted definitions reduce the chance of overload resolution silently changing
+when migrating from a freestanding implementation to a hosted implementation.
 \end{note}
+\begin{example}
+\begin{codeblock}
+double abs(double j);           // freestanding-deleted
+\end{codeblock}
+\end{example}
 
 \pnum
 \indextext{declaration!freestanding item}%
-A declaration in a header synopsis is a freestanding item if
+A declaration in a synopsis is a freestanding item if
 \begin{itemize}
-\item it is followed by a comment that includes \textit{freestanding}, or
-\item the header synopsis begins with a comment that includes \textit{all freestanding}.
+\item it is followed by a comment that includes \textit{freestanding},
+\item it is followed by a comment that includes \textit{freestanding-deleted}, or
+\item the header synopsis begins with a comment
+that includes \textit{freestanding} and
+the declaration is not followed by a comment that includes \textit{hosted}.
+\begin{note}
+Declarations followed by \textit{hosted} in freestanding headers are
+not freestanding items.
+As a result, looking up the name of such functions can vary
+between hosted and freestanding implementations.
+\end{note}
 \end{itemize}
+\begin{example}
+\begin{codeblock}
+// all freestanding
+namespace std {
+\end{codeblock}
+\end{example}
 
 \pnum
 \indextext{entity!freestanding item}%
+\indextext{deduction guide!freestanding item}%
 \indextext{\idxgram{typedef-name}!freestanding item}%
-An entity or \grammarterm{typedef-name} is a freestanding item if it is:
+An entity, deduction guide, or \grammarterm{typedef-name} is
+a freestanding item if it is:
 \begin{itemize}
 \item introduced by a declaration that is a freestanding item,
+\item a member of a freestanding item other than a namespace,
+\item an enumerator of a freestanding item,
+\item a deduction guide of a freestanding item,
 \item an enclosing namespace of a freestanding item,
 \item a friend of a freestanding item,
 \item denoted by a \grammarterm{typedef-name} that is a freestanding item, or
@@ -930,35 +967,40 @@ An entity or \grammarterm{typedef-name} is a freestanding item if it is:
 \indextext{macro!freestanding item}%
 A macro is a freestanding item if it is defined in a header synopsis and
 \begin{itemize}
-\item the definition is followed by a comment that includes \textit{freestanding}, or
-\item the header synopsis begins with a comment that includes \textit{all freestanding}.
+\item the definition is followed by a comment
+that includes \textit{freestanding}, or
+\item the header synopsis begins with a comment
+that includes \textit{freestanding} and
+the definition is not followed by a comment that includes \textit{hosted}.
 \end{itemize}
-
-\pnum
 \begin{example}
 \begin{codeblock}
 #define NULL @\seebelow@      // freestanding
 \end{codeblock}
 \end{example}
 
-\begin{example}
-\begin{codeblock}
-// all freestanding
-namespace std {
-\end{codeblock}
-\end{example}
-
 \pnum
-Function declarations and function template declarations
-followed by a comment that include \textit{freestanding-deleted} are
-\defnadjx{freestanding deleted}{functions}{function}.
-On freestanding implementations,
-it is \impldef{whether a freestanding deleted function is a freestanding item or a deleted function}
-whether each function definition introduced by a freestanding deleted function
-is a freestanding item or a deleted function\iref{dcl.fct.def.delete}.
+\begin{note}
+Freestanding annotations follow some additional exposition conventions
+that do not impose any additional normative requirements.
+Header synopses that begin with a comment containing "all freestanding"
+contain no hosted items and no freestanding deleted functions.
+Header synopses that begin with a comment containing "mostly freestanding"
+contain at least one hosted item or freestanding deleted function.
+Classes and class templates followed by a comment
+containing "partially freestanding"
+contain at least one hosted item or freestanding deleted function.
+\end{note}
 \begin{example}
 \begin{codeblock}
-double abs(double j);           // freestanding-deleted
+template<class T, size_t N> struct array;               // partially freestanding
+template<class T, size_t N>
+struct array {
+  constexpr reference       operator[](size_type n);
+  constexpr const_reference operator[](size_type n) const;
+  constexpr reference       at(size_type n);            // freestanding-deleted
+  constexpr const_reference at(size_type n) const;      // freestanding-deleted
+};
 \end{codeblock}
 \end{example}
 
@@ -1084,12 +1126,12 @@ shown in \tref{headers.cpp}.
 \tcode{<bitset>} \\
 \tcode{<charconv>} \\
 \tcode{<chrono>} \\
-\tcode{<codecvt>} \\
 \tcode{<compare>} \\
 \tcode{<complex>} \\
 \tcode{<concepts>} \\
 \tcode{<condition_variable>} \\
 \tcode{<coroutine>} \\
+\tcode{<debugging>} \\
 \tcode{<deque>} \\
 \tcode{<exception>} \\
 \tcode{<execution>} \\
@@ -1097,8 +1139,8 @@ shown in \tref{headers.cpp}.
 \tcode{<filesystem>} \\
 \tcode{<flat_map>} \\
 \tcode{<flat_set>} \\
-\tcode{<format>} \\
 \columnbreak
+\tcode{<format>} \\
 \tcode{<forward_list>} \\
 \tcode{<fstream>} \\
 \tcode{<functional>} \\
@@ -1114,6 +1156,7 @@ shown in \tref{headers.cpp}.
 \tcode{<iterator>} \\
 \tcode{<latch>} \\
 \tcode{<limits>} \\
+\tcode{<linalg>} \\
 \tcode{<list>} \\
 \tcode{<locale>} \\
 \tcode{<map>} \\
@@ -1281,7 +1324,7 @@ intended to be strictly compatible with C.
 \end{footnote}
 
 \pnum
-Annex K of the C standard describes a large number of functions,
+\IsoC{}, Annex K describes a large number of functions,
 with associated types and macros,
 which ``promote safer, more secure programming''
 than many of the traditional C library functions.
@@ -1302,7 +1345,7 @@ is declared in the global namespace.
 that may be declared in some header.
 These names are also subject to the restrictions of~\ref{macro.names}.
 
-\begin{multicolfloattable}{C standard Annex K names}{c.annex.k.names}
+\begin{multicolfloattable}{Names from \IsoC{}, Annex K}{c.annex.k.names}
 {llll}
 \tcode{abort_handler_s} \\
 \tcode{asctime_s} \\
@@ -1481,15 +1524,24 @@ include at least the headers shown in \tref{headers.cpp.fs}.
 \ref{ratio}              & Compile-time rational arithmetic & \tcode{<ratio>}     \\ \rowsep
 \ref{utility}            & Utility components        & \tcode{<utility>}          \\ \rowsep
 \ref{tuple}              & Tuples                    & \tcode{<tuple>}            \\ \rowsep
+\ref{optional}           & Optional objects          & \tcode{<optional>}         \\ \rowsep
+\ref{variant}            & Variants                  & \tcode{<variant>}          \\ \rowsep
+\ref{expected}           & Expected objects          & \tcode{<expected>}         \\ \rowsep
 \ref{function.objects}   & Function objects          & \tcode{<functional>}       \\ \rowsep
 \ref{charconv}           & Primitive numeric conversions & \tcode{<charconv>}     \\ \rowsep
 \ref{bit}                & Bit manipulation          & \tcode{<bit>}              \\ \rowsep
+\ref{string.view}        & String view classes       & \tcode{<string_view>}      \\ \rowsep
 \ref{string.classes}     & String classes            & \tcode{<string>}           \\ \rowsep
 \ref{c.strings}          & Null-terminated sequence utilities & \tcode{<cstring>}, \tcode{<cwchar>} \\ \rowsep
+\ref{array}              & Class template \tcode{array} & \tcode{<array>}         \\ \rowsep
+\ref{views.contiguous}   & Contiguous access         & \tcode{<span>}             \\ \rowsep
+\ref{views.multidim}     & Multidimensional access   & \tcode{<mdspan>}           \\ \rowsep
 \ref{iterators}          & Iterators library         & \tcode{<iterator>}         \\ \rowsep
 \ref{ranges}             & Ranges library            & \tcode{<ranges>}           \\ \rowsep
+\ref{algorithms}         & Algorithms library        & \tcode{<algorithm>}, \tcode{<numeric>} \\ \rowsep
 \ref{c.math}             & Mathematical functions for floating-point types & \tcode{<cmath>} \\ \rowsep
 \ref{atomics}            & Atomics                   & \tcode{<atomic>}           \\ \rowsep
+\ref{debugging}          & Debugging                 & \tcode{<debugging>}        \\ \rowsep
 \end{libsumtab}
 
 \pnum
@@ -1599,8 +1651,7 @@ linkage for this purpose.
 \begin{footnote}
 The only reliable way to declare an object or
 function signature from the C standard library is by including the header that
-declares it, notwithstanding the latitude granted in 7.1.4 of the C
-Standard.
+declares it, notwithstanding the latitude granted in \IsoC{}, 7.1.4.
 \end{footnote}
 
 \pnum
@@ -2569,7 +2620,7 @@ Nothing.
 \end{itemdescr}
 
 \begin{itemdecl}
-a.construct(c, args)
+a.construct(c, args...)
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -2841,10 +2892,11 @@ a program may add a template specialization for
 any standard library class template
 to namespace
 \tcode{std} provided that
-(a) the added declaration
-depends on at least one program-defined type
-and
-(b) the specialization meets the standard library requirements
+\begin{itemize}
+\item the added declaration
+depends on at least one program-defined type, and
+
+\item the specialization meets the standard library requirements
 for the original template.
 \begin{footnote}
 Any
@@ -2852,6 +2904,7 @@ library code that instantiates other library templates
 must be prepared to work adequately with any user-supplied specialization
 that meets the minimum requirements of this document.
 \end{footnote}
+\end{itemize}
 
 \pnum
 The behavior of a \Cpp{} program is undefined
@@ -2882,10 +2935,12 @@ of a standard library class or class template, or
 A program may explicitly instantiate
 a class template defined in the standard library
 only if the declaration
-(a) depends on the name of at least one program-defined type
-and
-(b) the instantiation meets the standard library requirements for the
+\begin{itemize}
+\item depends on the name of at least one program-defined type, and
+
+\item the instantiation meets the standard library requirements for the
 original template.
+\end{itemize}
 
 \pnum
 Let \tcode{\placeholder{F}} denote
@@ -2976,18 +3031,25 @@ In namespace \tcode{std}, the following names are reserved for previous standard
 \item \indexlibraryzombie{bind2nd} \tcode{bind2nd},
 \item \indexlibraryzombie{binder1st} \tcode{binder1st},
 \item \indexlibraryzombie{binder2nd} \tcode{binder2nd},
+\item \indexlibraryzombie{codecvt_mode} \tcode{codecvt_mode},
+\item \indexlibraryzombie{codecvt_utf16} \tcode{codecvt_utf16},
+\item \indexlibraryzombie{codecvt_utf8} \tcode{codecvt_utf8},
+\item \indexlibraryzombie{codecvt_utf8_utf16} \tcode{codecvt_utf8_utf16},
 \item \indexlibraryzombie{const_mem_fun1_ref_t} \tcode{const_mem_fun1_ref_t},
 \item \indexlibraryzombie{const_mem_fun1_t} \tcode{const_mem_fun1_t},
 \item \indexlibraryzombie{const_mem_fun_ref_t} \tcode{const_mem_fun_ref_t},
 \item \indexlibraryzombie{const_mem_fun_t} \tcode{const_mem_fun_t},
+\item \indexlibraryzombie{consume_header} \tcode{consume_header},
 \item \indexlibraryzombie{declare_no_pointers} \tcode{declare_no_pointers},
 \item \indexlibraryzombie{declare_reachable} \tcode{declare_reachable},
+\item \indexlibraryzombie{generate_header} \tcode{generate_header},
 \item \indexlibraryzombie{get_pointer_safety} \tcode{get_pointer_safety},
 \item \indexlibraryzombie{get_temporary_buffer} \tcode{get_temporary_buffer},
 \item \indexlibraryzombie{get_unexpected} \tcode{get_unexpected},
 \item \indexlibraryzombie{gets} \tcode{gets},
 \item \indexlibraryzombie{is_literal_type} \tcode{is_literal_type},
 \item \indexlibraryzombie{is_literal_type_v} \tcode{is_literal_type_v},
+\item \indexlibraryzombie{little_endian} \tcode{little_endian},
 \item \indexlibraryzombie{mem_fun1_ref_t} \tcode{mem_fun1_ref_t},
 \item \indexlibraryzombie{mem_fun1_t} \tcode{mem_fun1_t},
 \item \indexlibraryzombie{mem_fun_ref_t} \tcode{mem_fun_ref_t},
@@ -3039,6 +3101,7 @@ function-like macros in portable code.
 The header names
 \libnoheader{ccomplex},
 \libnoheader{ciso646},
+\libnoheader{codecvt},
 \libnoheader{cstdalign},
 \libnoheader{cstdbool}, and
 \libnoheader{ctgmath}
@@ -3353,7 +3416,7 @@ pointer did point to the first element of such an array) are in fact valid.
 \item
 If a function argument is bound to an rvalue reference parameter, the implementation may
 assume that this parameter is a unique reference to this argument,
-except that the argument passed to a move-assignment operator may be
+except that the argument passed to a move assignment operator may be
 a reference to \tcode{*this}\iref{lib.types.movedfrom}.
 \begin{note}
 If the type of a parameter is a forwarding reference\iref{temp.deduct.call}
@@ -3715,8 +3778,7 @@ that would be caught by an exception handler for the base type.
 Functions from the C standard library shall not throw exceptions%
 \indextext{specifications!C standard library exception}%
 \begin{footnote}
-That is, the C
-library functions can all be treated as if they
+That is, the C standard library functions can all be treated as if they
 are marked \keyword{noexcept}.
 This allows implementations to make performance optimizations
 based on the absence of exceptions at runtime.

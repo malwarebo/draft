@@ -694,8 +694,9 @@ Therefore, requirement tables and concept definitions for the iterators
 do not specify complexity.
 
 \pnum
-Destruction of a non-forward iterator may invalidate pointers and references
-previously obtained from that iterator.
+Destruction of an iterator may invalidate pointers and references previously
+obtained from that iterator if its type does not meet the
+\oldconcept{ForwardIterator} requirements and does not model \libconcept{forward_iterator}.
 
 \pnum
 An \defnadj{invalid}{iterator}
@@ -2213,7 +2214,7 @@ Equality and inequality are not necessarily defined.
 \pnum
 A class or pointer type
 \tcode{X}
-meets the requirements of a forward iterator if
+meets the \oldconcept{ForwardIterator} requirements if
 \begin{itemize}
 \item \tcode{X} meets the \oldconcept{InputIterator} requirements\iref{input.iterators},
 
@@ -4287,6 +4288,13 @@ namespace std {
     template<@\libconcept{sentinel_for}@<Iterator> S>
       constexpr bool operator==(const S& s) const;
 
+    template<@\exposconcept{not-a-const-iterator}@ CI>
+      requires @\exposconcept{constant-iterator}@<CI> && @\libconcept{convertible_to}@<Iterator const&, CI>
+    constexpr operator CI() const &;
+    template<@\exposconcept{not-a-const-iterator}@ CI>
+      requires @\exposconcept{constant-iterator}@<CI> && @\libconcept{convertible_to}@<Iterator, CI>
+    constexpr operator CI() &&;
+
     constexpr bool operator<(const basic_const_iterator& y) const
       requires @\libconcept{random_access_iterator}@<Iterator>;
     constexpr bool operator>(const basic_const_iterator& y) const
@@ -4587,6 +4595,30 @@ template<@\libconcept{sentinel_for}@<Iterator> S>
 \pnum
 \effects
 Equivalent to: \tcode{return \exposid{current_} == s;}
+\end{itemdescr}
+
+\begin{itemdecl}
+template<@\exposconcept{not-a-const-iterator}@ CI>
+  requires @\exposconcept{constant-iterator}@<CI> && @\libconcept{convertible_to}@<Iterator const&, CI>
+constexpr operator CI() const &;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\exposid{current_}.
+\end{itemdescr}
+
+\begin{itemdecl}
+template<@\exposconcept{not-a-const-iterator}@ CI>
+  requires @\exposconcept{constant-iterator}@<CI> && @\libconcept{convertible_to}@<Iterator, CI>
+constexpr operator CI() &&;
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns
+\tcode{std::move(\exposid{current_})}.
 \end{itemdescr}
 
 \indexlibrarymember{operator<}{basic_const_iterator}%
@@ -5457,7 +5489,7 @@ namespace std {
     friend constexpr iter_difference_t<I2> operator-(
       const common_iterator& x, const common_iterator<I2, S2>& y);
 
-    friend constexpr iter_rvalue_reference_t<I> iter_move(const common_iterator& i)
+    friend constexpr decltype(auto) iter_move(const common_iterator& i)
       noexcept(noexcept(ranges::iter_move(declval<const I&>())))
         requires @\libconcept{input_iterator}@<I>;
     template<@\libconcept{indirectly_swappable}@<I> I2, class S2>
@@ -5476,7 +5508,7 @@ namespace std {
   template<@\libconcept{input_iterator}@ I, class S>
   struct iterator_traits<common_iterator<I, S>> {
     using iterator_concept = @\seebelow@;
-    using iterator_category = @\seebelow@;
+    using iterator_category = @\seebelow@;  // not always present
     using value_type = iter_value_t<I>;
     using difference_type = iter_difference_t<I>;
     using pointer = @\seebelow@;
@@ -5488,20 +5520,23 @@ namespace std {
 \rSec3[common.iter.types]{Associated types}
 
 \pnum
-The nested \grammarterm{typedef-name}s of the specialization of
-\tcode{iterator_traits} for \tcode{common_iterator<I, S>} are defined as follows.
+The nested \grammarterm{typedef-name} \tcode{iterator_category} of
+the specialization of \tcode{iterator_traits} for \tcode{common_iterator<I, S>}
+is defined if and only if \tcode{iter_difference_t<I>} is an integral type.
+In that case,
+\tcode{iterator_category} denotes \tcode{forward_iterator_tag} if
+the \grammarterm{qualified-id} \tcode{iterator_traits<I>::iterator_category}
+is valid and denotes a type that
+models \tcode{\libconcept{derived_from}<forward_iterator_tag>};
+otherwise it denotes \tcode{input_iterator_tag}.
+
+\pnum
+The remaining nested \grammarterm{typedef-name}s of the specialization of
+\tcode{iterator_traits} for \tcode{common_iterator<I, S>} are defined as follows:
 \begin{itemize}
 \item
 \tcode{iterator_concept} denotes \tcode{forward_iterator_tag}
 if \tcode{I} models \libconcept{forward_iterator};
-otherwise it denotes \tcode{input_iterator_tag}.
-
-\item
-\tcode{iterator_category} denotes
-\tcode{forward_iterator_tag}
-if the \grammarterm{qualified-id} \tcode{iterator_traits<I>::iter\-ator_category}
-is valid and denotes a type that
-models \tcode{\libconcept{derived_from}<forward_iterator_tag>};
 otherwise it denotes \tcode{input_iterator_tag}.
 
 \item
@@ -5796,7 +5831,7 @@ $i$ is \tcode{x.v_.index()} and $j$ is \tcode{y.v_.index()}.
 
 \indexlibrarymember{iter_move}{common_iterator}%
 \begin{itemdecl}
-friend constexpr iter_rvalue_reference_t<I> iter_move(const common_iterator& i)
+friend constexpr decltype(auto) iter_move(const common_iterator& i)
   noexcept(noexcept(ranges::iter_move(declval<const I&>())))
     requires @\libconcept{input_iterator}@<I>;
 \end{itemdecl}
@@ -5955,7 +5990,7 @@ namespace std {
       friend constexpr strong_ordering operator<=>(
         const counted_iterator& x, const counted_iterator<I2>& y);
 
-    friend constexpr iter_rvalue_reference_t<I> iter_move(const counted_iterator& i)
+    friend constexpr decltype(auto) iter_move(const counted_iterator& i)
       noexcept(noexcept(ranges::iter_move(i.current)))
         requires @\libconcept{input_iterator}@<I>;
     template<@\libconcept{indirectly_swappable}@<I> I2>
@@ -6383,7 +6418,7 @@ because \tcode{length} counts down, not up.
 
 \indexlibrarymember{iter_move}{counted_iterator}%
 \begin{itemdecl}
-friend constexpr iter_rvalue_reference_t<I>
+friend constexpr decltype(auto)
   iter_move(const counted_iterator& i)
     noexcept(noexcept(ranges::iter_move(i.current)))
     requires @\libconcept{input_iterator}@<I>;
@@ -7211,6 +7246,8 @@ the function templates in \ref{iterator.range} are available when any of the fol
 headers are included:
 \libheaderref{array},
 \libheaderref{deque},
+\libheaderrefx{flat_map}{flat.map.syn},
+\libheaderrefx{flat_set}{flat.set.syn},
 \libheaderrefx{forward_list}{forward.list.syn},
 \libheaderref{list},
 \libheaderrefx{map}{associative.map.syn},
