@@ -918,7 +918,7 @@ as a synonym for a class with equivalent functionality
 to class \tcode{ios_base::failure} shown in this subclause.
 \begin{note}
 When \tcode{ios_base::failure} is a synonym for another type,
-that type is required to provide a nested type \tcode{failure}
+that type needs to provide a nested type \tcode{failure}
 to emulate the injected-class-name.
 \end{note}
 The class
@@ -8081,7 +8081,7 @@ then calls \tcode{init_buf_ptrs()}.
 
 \indexlibraryctor{basic_stringbuf}%
 \begin{itemdecl}
-basic_stringbuf(ios_base::openmode which, const Allocator &a);
+basic_stringbuf(ios_base::openmode which, const Allocator& a);
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -8119,7 +8119,7 @@ then calls \tcode{init_buf_ptrs()}.
 template<class SAlloc>
   basic_stringbuf(
     const basic_string<charT, traits, SAlloc>& s,
-    ios_base::openmode which, const Allocator &a);
+    ios_base::openmode which, const Allocator& a);
 \end{itemdecl}
 
 \begin{itemdescr}
@@ -13839,8 +13839,8 @@ as a native path.
 \begin{note}
 Some operating systems have no unambiguous way to distinguish between native format and generic format arguments.
 This is by design as it simplifies use for operating systems that do not require
-disambiguation. An implementation for an operating system where disambiguation
-is required is permitted to distinguish between the formats.
+disambiguation. It is possible that an implementation for an operating system
+where disambiguation is needed distinguishes between the formats.
 \end{note}
 
 \pnum
@@ -14384,7 +14384,7 @@ path& make_preferred();
 \effects
 Each \grammarterm{directory-separator}
 of the pathname in the generic format
-  is converted to \grammarterm{preferred-separator}.
+is converted to \grammarterm{preferred-separator}.
 
 \pnum
 \returns
@@ -15161,8 +15161,8 @@ the forward traversal order is as follows:
 \item The \grammarterm{root-name} element, if present.
 \item The \grammarterm{root-directory} element, if present.
 \begin{note}
-The generic format is required to ensure lexicographical
-comparison works correctly.
+It is possible that the use of the generic format is needed
+to ensure correct lexicographical comparison.
 \end{note}
 \item Each successive \grammarterm{filename} element, if present.
 \item An empty element, if a trailing non-root \grammarterm{directory-separator}
